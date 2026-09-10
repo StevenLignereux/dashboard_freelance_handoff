@@ -358,7 +358,9 @@ export const seedMissions: Mission[] = [
   },
 ];
 
-/** Relances auto : demande "Solution proposée" sans prochaine action et +5j depuis dernière activité. */
+/** Relances auto : demande "Solution proposée" sans prochaine action et +5j depuis dernière activité.
+ *  Date d'échéance de la relance = lastActivityAt + 5 jours.
+ */
 export function applyRelanceRules(
   requests: Request[]
 ): Request[] {
@@ -366,10 +368,13 @@ export function applyRelanceRules(
   return requests.map((r) => {
     if (r.status !== 'solution_proposee') return r;
     if (r.nextAction) return r;
+    const last = new Date(r.lastActivityAt);
     const daysSince = Math.floor(
-      (now - new Date(r.lastActivityAt).getTime()) / (1000 * 60 * 60 * 24)
+      (now - last.getTime()) / (1000 * 60 * 60 * 24)
     );
     if (daysSince < 5) return r;
+    const dueDate = new Date(last);
+    dueDate.setDate(dueDate.getDate() + 5);
     return {
       ...r,
       nextAction: {
@@ -378,9 +383,7 @@ export function applyRelanceRules(
         label: `Relancer ${
           seedContacts.find((c) => c.id === r.contactId)?.lastName ?? ''
         } — ${r.title}`,
-        dueDate: new Date(r.lastActivityAt).toISOString(),
-        isOverdue: true,
-        overdueDays: daysSince - 5,
+        dueDate: dueDate.toISOString(),
       },
     };
   });

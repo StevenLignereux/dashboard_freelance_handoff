@@ -5,7 +5,7 @@ import { ContactsPage } from './pages/ContactsPage';
 import { RequestsPage } from './pages/RequestsPage';
 import { MissionsPage } from './pages/MissionsPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { ContactDrawer } from './components/contact/ContactDrawer';
+import { ContactCardModal } from './components/contact/ContactCardModal';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
 import { ContactCreateModal } from './components/contact/ContactCreateModal';
 
@@ -35,7 +35,7 @@ function Router() {
         <MissionsPage onOpenContact={setActiveContactId} />
       )}
       {store.nav.active === 'settings' && <SettingsPage />}
-      <ContactDrawer
+      <ContactCardModal
         contactId={activeContactId}
         onClose={() => { setActiveContactId(null); }}
       />

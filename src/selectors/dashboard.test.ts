@@ -185,6 +185,53 @@ describe('buildDashboardData', () => {
     });
     expect(dashboard.overdueActions).toHaveLength(1);
     expect(dashboard.overdueActions[0].action.label).toMatch(/Relancer/);
+    expect(dashboard.overdueActions[0].action.overdueDays).toBe(5);
+  });
+
+  it('relance auto : J+4 (avant seuil) → aucune relance', () => {
+    const contacts = [contact(20)];
+    const requests: Request[] = [
+      request(20, {
+        status: 'solution_proposee',
+        lastActivityAt: d(-4),
+        nextAction: undefined,
+      }),
+    ];
+    const dashboard = buildDashboardData({ requests, contacts, missions: [] });
+    expect(dashboard.overdueActions).toHaveLength(0);
+    expect(dashboard.todayActions).toHaveLength(0);
+    expect(dashboard.upcomingActions).toHaveLength(0);
+  });
+
+  it('relance auto : J+5 (seuil exact) → relance dans todayActions', () => {
+    const contacts = [contact(21)];
+    const requests: Request[] = [
+      request(21, {
+        status: 'solution_proposee',
+        lastActivityAt: d(-5),
+        nextAction: undefined,
+      }),
+    ];
+    const dashboard = buildDashboardData({ requests, contacts, missions: [] });
+    expect(dashboard.overdueActions).toHaveLength(0);
+    expect(dashboard.todayActions).toHaveLength(1);
+    expect(dashboard.todayActions[0].action.isToday).toBe(true);
+    expect(dashboard.upcomingActions).toHaveLength(0);
+  });
+
+  it('relance auto : J+8 (3j après échéance) → overdue avec 3j de retard', () => {
+    const contacts = [contact(22)];
+    const requests: Request[] = [
+      request(22, {
+        status: 'solution_proposee',
+        lastActivityAt: d(-8),
+        nextAction: undefined,
+      }),
+    ];
+    const dashboard = buildDashboardData({ requests, contacts, missions: [] });
+    expect(dashboard.overdueActions).toHaveLength(1);
+    expect(dashboard.overdueActions[0].action.isOverdue).toBe(true);
+    expect(dashboard.overdueActions[0].action.overdueDays).toBe(3);
   });
 });
 
