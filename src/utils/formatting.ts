@@ -1,8 +1,9 @@
+import { clock } from '../config/clock';
 import { useMemo } from 'react';
 
 export function getInitials(firstName: string, lastName: string): string {
   return (
-    (firstName?.[0] ?? '') + (lastName?.[0] ?? '')
+    firstName.charAt(0) + lastName.charAt(0)
   ).toUpperCase();
 }
 
@@ -45,7 +46,7 @@ export function formatDueDate(iso: string): {
   hour?: string;
 } {
   const date = new Date(iso);
-  const now = new Date('2026-09-10T10:00:00');
+  const now = clock.now();
   const dayStart = new Date(now);
   dayStart.setHours(0, 0, 0, 0);
   const targetStart = new Date(date);
@@ -74,7 +75,7 @@ export function formatDueDate(iso: string): {
     date.getMinutes() === 0 ? '' : date.getMinutes().toString().padStart(2, '0')
   }`;
 
-  let when = '';
+  let when: string;
   if (diffDays < 0) when = `En retard de ${Math.abs(diffDays)} jour${Math.abs(diffDays) > 1 ? 's' : ''}`;
   else if (diffDays === 0) when = `Aujourd'hui`;
   else if (diffDays === 1) when = 'Demain';

@@ -5,7 +5,7 @@ import { RelationshipBadge } from '../ui/RelationshipBadge';
 import { NextActionView } from '../ui/NextActionView';
 import { getInitials, useAvatarGradient } from '../../utils/formatting';
 import { statusMeta } from '../../tokens/design-tokens';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useReducedMotion } from '../../store/AppStore';
 
 interface ContactCardProps {
   contact: Contact;
@@ -22,32 +22,71 @@ export function ContactCard({
 }: ContactCardProps) {
   const reduced = useReducedMotion();
   const ref = useRef<HTMLButtonElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0, posX: 50, posY: 50 });
-  const [pressed, setPressed] = useState(false);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const pressedRef = useRef(false);
+  const [, forceRender] = useState(0);
 
   const status = activeRequest?.status ?? 'sans_suite';
   const meta = statusMeta[status];
   const initials = getInitials(contact.firstName, contact.lastName);
   const gradient = useAvatarGradient(contact.avatarSeed);
 
+  const applyTilt = () => {
+    const inner = innerRef.current;
+    const next = pendingRef.current;
+    if (inner && next) {
+      inner.style.setProperty('--tilt-x', `${next.x.toFixed(2)}deg`);
+      inner.style.setProperty('--tilt-y', `${next.y.toFixed(2)}deg`);
+      inner.style.setProperty('--foil-x', `${next.px.toFixed(1)}%`);
+      inner.style.setProperty('--foil-y', `${next.py.toFixed(1)}%`);
+      inner.style.setProperty(
+        'transform',
+        reduced
+          ? pressedRef.current
+            ? 'scale(0.985)'
+            : ''
+          : `perspective(900px) rotateX(${next.x.toFixed(2)}deg) rotateY(${next.y.toFixed(2)}deg) ${
+              pressedRef.current ? 'scale(0.985)' : ''
+            }`
+      );
+    }
+    pendingRef.current = null;
+    rafRef.current = null;
+  };
+
+  const scheduleTilt = (x: number, y: number, px: number, py: number) => {
+    pendingRef.current = { x, y, px, py };
+    rafRef.current ??= window.requestAnimationFrame(applyTilt);
+  };
+
+  const resetTilt = () => {
+    pressedRef.current = false;
+    pendingRef.current = { x: 0, y: 0, px: 50, py: 50 };
+    rafRef.current ??= window.requestAnimationFrame(applyTilt);
+    forceRender((n) => (n + 1) % 1_000_000);
+  };
+
   const handleMouseMove = (e: MouseEvent<HTMLButtonElement>) => {
     if (reduced) return;
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
-    const rotateY = (px - 0.5) * 6;
-    const rotateX = (0.5 - py) * 6;
-    setTilt({
-      x: Math.max(-3, Math.min(3, rotateX)),
-      y: Math.max(-3, Math.min(3, rotateY)),
-      posX: px * 100,
-      posY: py * 100,
-    });
+    if (rect.width === 0 || rect.height === 0) return;
+    const px = ((e.clientX - rect.left) / rect.width) * 100;
+    const py = ((e.clientY - rect.top) / rect.height) * 100;
+    const rotateY = ((px - 50) / 50) * 3;
+    const rotateX = ((50 - py) / 50) * 3;
+    scheduleTilt(rotateX, rotateY, px, py);
   };
 
-  const resetTilt = () => setTilt({ x: 0, y: 0, posX: 50, posY: 50 });
+  const press = (v: boolean) => {
+    pressedRef.current = v;
+    const next = pendingRef.current ?? { x: 0, y: 0, px: 50, py: 50 };
+    scheduleTilt(next.x, next.y, next.px, next.py);
+  };
 
   const handleKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -60,12 +99,12 @@ export function ContactCard({
     <button
       ref={ref}
       type="button"
-      onClick={() => onOpen(contact.id)}
+      onClick={() => { onOpen(contact.id); }}
       onMouseMove={handleMouseMove}
-      onMouseEnter={() => setTilt((t) => ({ ...t }))}
       onMouseLeave={resetTilt}
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => setPressed(false)}
+      onMouseDown={() => { press(true); }}
+      onMouseUp={() => { press(false); }}
+      onBlur={resetTilt}
       onKeyDown={handleKey}
       aria-label={`Ouvrir la fiche de ${contact.firstName} ${contact.lastName}`}
       className={[
@@ -74,6 +113,7 @@ export function ContactCard({
       ].join(' ')}
     >
       <div
+        ref={innerRef}
         className={[
           'relative h-full w-full rounded-2xl overflow-hidden',
           'bg-bg-surface card-inner-glow',
@@ -84,12 +124,7 @@ export function ContactCard({
             : 'hover:shadow-glow hover:[transform:translateZ(0)]',
         ].join(' ')}
         style={{
-          transform: reduced
-            ? pressed
-              ? 'scale(0.985)'
-              : undefined
-            : `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) ${pressed ? 'scale(0.985)' : ''}`,
-          ['--foil-pos' as string]: `${tilt.posX}% ${tilt.posY}%`,
+          ['--foil-pos' as string]: `var(--foil-x, 50%) var(--foil-y, 50%)`,
         }}
       >
         <div

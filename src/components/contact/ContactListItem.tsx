@@ -26,7 +26,7 @@ export function ContactListItem({
   return (
     <button
       type="button"
-      onClick={() => onOpen(contact.id)}
+      onClick={() => { onOpen(contact.id); }}
       aria-label={`Ouvrir la fiche de ${contact.firstName} ${contact.lastName}`}
       className={[
         'group w-full text-left p-3 sm:p-4 rounded-2xl transition-all duration-150 ease-snap',

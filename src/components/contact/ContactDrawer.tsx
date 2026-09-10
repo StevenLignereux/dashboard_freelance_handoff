@@ -1,14 +1,11 @@
-import { useEffect } from 'react';
-import {
-  contacts,
-  exchanges,
-  missions,
-  requests,
-} from '../../data/mockData';
+import { useEffect, useRef } from 'react';
+import { useAppStore } from '../../store/AppStore';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RelationshipBadge } from '../ui/RelationshipBadge';
 import { NextActionView } from '../ui/NextActionView';
 import { getInitials, useAvatarGradient, formatDueDate } from '../../utils/formatting';
+import { getActiveRequestForContact, getExchangesForContact, getMissionsForContact, hydrateNextAction } from '../../selectors/dashboard';
+import type { Contact, Exchange, Mission, Request } from '../../types';
 
 interface ContactDrawerProps {
   contactId: string | null;
@@ -23,31 +20,118 @@ const exchangeMeta: Record<string, { label: string; color: string }> = {
   note: { label: 'Note', color: 'text-slate-400 bg-slate-500/15 ring-slate-500/25' },
 };
 
-export function ContactDrawer({ contactId, onClose }: ContactDrawerProps) {
-  useEffect(() => {
-    if (!contactId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [contactId, onClose]);
+function getFocusable(root: HTMLElement): HTMLElement[] {
+  const sel = [
+    'a[href]',
+    'area[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    'iframe',
+    'object',
+    'embed',
+    '[contenteditable="true"]',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
+  return Array.from(root.querySelectorAll<HTMLElement>(sel)).filter(
+    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true'
+  );
+}
 
-  const contact = contacts.find((c) => c.id === contactId);
-  const contactRequests = requests.filter((r) => r.contactId === contactId && !r.archived);
-  const activeRequest = contactRequests.find((r) => r.id === contact?.activeRequestId) ?? contactRequests[0];
-  const contactMissions = missions.filter((m) => m.contactId === contactId);
-  const relatedExchangeIds = contactRequests.map((r) => r.id);
-  const contactExchanges = exchanges
-    .filter((e) => relatedExchangeIds.includes(e.requestId))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 6);
+export function ContactDrawer({ contactId, onClose }: ContactDrawerProps) {
+  const store = useAppStore();
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const previouslyInert = useRef<Element[]>([]);
+
+  const contact = store.data.contacts.find((c) => c.id === contactId) ?? null;
+  const activeRequest: Request | undefined = contact
+    ? getActiveRequestForContact({
+        contactId: contact.id,
+        requests: store.data.requests,
+      })
+    : undefined;
+  const contactMissions: Mission[] = contact
+    ? getMissionsForContact({ contactId: contact.id, missions: store.data.missions })
+    : [];
+  const contactExchanges: Exchange[] = contact
+    ? getExchangesForContact({
+        contactId: contact.id,
+        requests: store.data.requests,
+        exchanges: store.data.exchanges,
+      })
+    : [];
+
+  const nextActionHydrated = hydrateNextAction(activeRequest?.nextAction);
 
   const isOpen = !!contact;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    lastFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null;
+    previouslyInert.current = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-inert-saved]')
+    );
+    const roots: Element[] = [];
+    document.querySelectorAll<HTMLElement>('body > *').forEach((el) => {
+      if (el.contains(drawerRef.current)) return;
+      const attr = el.getAttribute('aria-hidden');
+      if (attr !== 'true' && el.getAttribute('inert') === null) {
+        el.setAttribute('data-inert-saved', '1');
+        el.setAttribute('aria-hidden', 'true');
+        (el).inert = true;
+        roots.push(el);
+      }
+    });
+    previouslyInert.current = roots;
+
+    document.body.style.overflow = 'hidden';
+
+    const timer = window.setTimeout(() => {
+      const focusables = drawerRef.current ? getFocusable(drawerRef.current) : [];
+      const first = focusables.find((e) => e.dataset.focusInit !== undefined) ?? focusables[0];
+      first.focus({ preventScroll: true });
+    }, 30);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !drawerRef.current) return;
+      const focusables = getFocusable(drawerRef.current).filter(
+        (f) => f.offsetParent !== null || f.tagName === 'INPUT'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+      previouslyInert.current.forEach((el) => {
+        el.removeAttribute('data-inert-saved');
+        el.removeAttribute('aria-hidden');
+        (el as HTMLElement).inert = false;
+      });
+      previouslyInert.current = [];
+      if (lastFocusedRef.current) {
+        lastFocusedRef.current.focus({ preventScroll: true });
+      }
+    };
+  }, [isOpen, onClose]);
 
   return (
     <>
@@ -60,9 +144,11 @@ export function ContactDrawer({ contactId, onClose }: ContactDrawerProps) {
       />
 
       <aside
+        ref={drawerRef}
         role="dialog"
         aria-modal="true"
         aria-label={contact ? `Fiche de ${contact.firstName} ${contact.lastName}` : undefined}
+        tabIndex={-1}
         className={`fixed top-0 right-0 z-50 h-full w-full sm:max-w-md lg:max-w-lg
           bg-bg border-l border-white/10 shadow-[0_32px_80px_-20px_rgba(0,0,0,0.8)]
           transition-transform duration-300 ease-snap
@@ -77,11 +163,16 @@ export function ContactDrawer({ contactId, onClose }: ContactDrawerProps) {
               <div className="p-5 sm:p-6 space-y-6">
                 <ContactIdentity contact={contact} />
                 {activeRequest && (
-                  <RequestBlock request={activeRequest} />
+                  <RequestBlock
+                    request={{
+                      ...activeRequest,
+                      nextAction: nextActionHydrated,
+                    }}
+                  />
                 )}
                 <StatsBlock contact={contact} />
                 <MissionsBlock missions={contactMissions} />
-                <ExchangesBlock exchanges={contactExchanges} />
+                <ExchangesBlock exchanges={contactExchanges.slice(0, 6)} />
                 {contact.notes && <NotesBlock notes={contact.notes} />}
               </div>
             </div>
@@ -96,7 +187,7 @@ function DrawerHeader({
   contact,
   onClose,
 }: {
-  contact: (typeof contacts)[number];
+  contact: Contact;
   onClose: () => void;
 }) {
   return (
@@ -113,6 +204,7 @@ function DrawerHeader({
         type="button"
         onClick={onClose}
         aria-label="Fermer"
+        data-focus-init
         className="btn-ghost !p-2 hover:bg-white/10"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -124,7 +216,7 @@ function DrawerHeader({
   );
 }
 
-function ContactIdentity({ contact }: { contact: (typeof contacts)[number] }) {
+function ContactIdentity({ contact }: { contact: Contact }) {
   const initials = getInitials(contact.firstName, contact.lastName);
   const gradient = useAvatarGradient(contact.avatarSeed);
 
@@ -199,7 +291,7 @@ function ContactIdentity({ contact }: { contact: (typeof contacts)[number] }) {
   );
 }
 
-function RequestBlock({ request }: { request: (typeof requests)[number] }) {
+function RequestBlock({ request }: { request: Request }) {
   return (
     <section className="space-y-3 p-4 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -231,7 +323,7 @@ function RequestBlock({ request }: { request: (typeof requests)[number] }) {
   );
 }
 
-function StatsBlock({ contact }: { contact: (typeof contacts)[number] }) {
+function StatsBlock({ contact }: { contact: Contact }) {
   return (
     <section>
       <div className="grid grid-cols-2 gap-3">
@@ -262,7 +354,7 @@ function StatsBlock({ contact }: { contact: (typeof contacts)[number] }) {
   );
 }
 
-function MissionsBlock({ missions }: { missions: (typeof import('../../data/mockData').missions) }) {
+function MissionsBlock({ missions }: { missions: Mission[] }) {
   if (missions.length === 0) return null;
   return (
     <section>
@@ -280,7 +372,7 @@ function MissionsBlock({ missions }: { missions: (typeof import('../../data/mock
                 {m.title}
               </p>
               <span className="chip bg-brand-green/15 text-brand-green ring-1 ring-brand-green/25 text-[10px]">
-                {m.status === 'terminee' ? 'Terminée' : m.status === 'en_cours' ? 'En cours' : m.status === 'a_demarrer' ? 'À démarrer' : 'En attente'}
+                {m.status === 'terminee' ? 'Terminée' : m.status === 'en_cours' ? 'En cours' : m.status === 'a_demarrer' ? 'À démarrer' : 'En pause'}
               </span>
             </div>
             {typeof m.progress === 'number' && (
@@ -300,7 +392,7 @@ function MissionsBlock({ missions }: { missions: (typeof import('../../data/mock
   );
 }
 
-function ExchangesBlock({ exchanges }: { exchanges: typeof import('../../data/mockData').exchanges }) {
+function ExchangesBlock({ exchanges }: { exchanges: Exchange[] }) {
   return (
     <section>
       <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-3">

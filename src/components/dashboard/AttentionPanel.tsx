@@ -1,12 +1,13 @@
-import { dashboardAttentionItems } from '../../data/mockData';
 import { formatDueDate } from '../../utils/formatting';
+import type { DashboardItem } from '../../selectors/dashboard';
 
 interface AttentionPanelProps {
+  items: DashboardItem[];
   onOpenContact: (contactId: string) => void;
 }
 
-export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
-  const count = dashboardAttentionItems.length;
+export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
+  const count = items.length;
 
   return (
     <section className="surface relative overflow-hidden p-5">
@@ -38,12 +39,12 @@ export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
         </header>
 
         <ul className="space-y-2">
-          {dashboardAttentionItems.map((item) => {
+          {items.map((item) => {
             const { when, hour } = formatDueDate(item.action.dueDate);
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => onOpenContact(item.contactId)}
+                  onClick={() => { onOpenContact(item.contactId); }}
                   className="group w-full flex items-center gap-3 p-3 rounded-xl ring-1 ring-transparent
                     hover:bg-white/5 hover:ring-white/10
                     active:scale-[0.99]
@@ -82,6 +83,11 @@ export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
               </li>
             );
           })}
+          {items.length === 0 && (
+            <li className="p-5 text-center text-sm text-slate-500">
+              Aucun retard — bon travail.
+            </li>
+          )}
         </ul>
       </div>
     </section>

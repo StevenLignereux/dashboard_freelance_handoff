@@ -1,12 +1,14 @@
-import { dashboardActiveMissions } from '../../data/mockData';
-import { contacts } from '../../data/mockData';
+import type { Contact, Mission } from '../../types';
 
 interface ActiveMissionsPanelProps {
+  missions: Mission[];
+  contacts: Contact[];
   onOpenContact: (contactId: string) => void;
 }
 
-export function ActiveMissionsPanel({ onOpenContact }: ActiveMissionsPanelProps) {
-  const count = dashboardActiveMissions.length;
+export function ActiveMissionsPanel({ missions, contacts, onOpenContact }: ActiveMissionsPanelProps) {
+  const count = missions.length;
+  const contactMap = new Map(contacts.map((c) => [c.id, c]));
 
   return (
     <section className="surface relative overflow-hidden p-5">
@@ -37,13 +39,13 @@ export function ActiveMissionsPanel({ onOpenContact }: ActiveMissionsPanelProps)
         </header>
 
         <ul className="space-y-2">
-          {dashboardActiveMissions.map((mission) => {
-            const contact = contacts.find((c) => c.id === mission.contactId);
+          {missions.map((mission) => {
+            const contact = contactMap.get(mission.contactId);
             const progress = mission.progress ?? 0;
             return (
               <li key={mission.id}>
                 <button
-                  onClick={() => onOpenContact(mission.contactId)}
+                  onClick={() => { onOpenContact(mission.contactId); }}
                   className="group w-full text-left p-3 rounded-xl ring-1 ring-transparent
                     hover:bg-white/5 hover:ring-white/10
                     active:scale-[0.99]
@@ -91,6 +93,11 @@ export function ActiveMissionsPanel({ onOpenContact }: ActiveMissionsPanelProps)
               </li>
             );
           })}
+          {missions.length === 0 && (
+            <li className="p-5 text-center text-sm text-slate-500">
+              Aucune mission active pour le moment.
+            </li>
+          )}
         </ul>
       </div>
     </section>

@@ -1,4 +1,6 @@
 import type { NavItemKey } from '../../types';
+import { useAppStore } from '../../store/AppStore';
+import { appConfig } from '../../config/appConfig';
 
 const navItems: {
   key: NavItemKey;
@@ -71,6 +73,7 @@ export function Sidebar({
   mobileOpen,
   onCloseMobile,
 }: SidebarProps) {
+  const store = useAppStore();
   return (
     <>
       {mobileOpen && (
@@ -98,11 +101,11 @@ export function Sidebar({
           </div>
           <div>
             <div className="font-display font-bold text-white tracking-tight text-lg leading-none">
-              Workflow
+              {appConfig.productName}
               <span className="text-brand-violet">.</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              Des contacts aux belles missions
+              {appConfig.productTagline}
             </div>
           </div>
         </div>
@@ -118,6 +121,7 @@ export function Sidebar({
                 key={item.key}
                 onClick={() => {
                   onNavigate(item.key);
+                  store.search.setQuery('');
                   onCloseMobile();
                 }}
                 className={[
@@ -149,14 +153,11 @@ export function Sidebar({
           <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-brand-violet/20 via-bg-surface2 to-brand-cyan/10 ring-1 ring-white/5">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-brand-violet/20 blur-3xl" />
             <div className="relative">
-              <div className="font-display font-semibold text-white text-sm">
-                Petites actions
-              </div>
-              <div className="font-display font-bold text-white text-lg -mt-0.5">
-                Grands projets
-              </div>
-              <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-                « Un contact aujourd'hui, une belle mission demain. »
+              <p className="text-xs text-slate-400 leading-relaxed">
+                <span className="font-serif text-lg leading-none text-brand-violet">
+                  “
+                </span>
+                {appConfig.signatureQuote}
               </p>
             </div>
           </div>
