@@ -1,14 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { ContactsViewMode, RelationshipType } from '../../types';
-import { contacts, requests } from '../../data/mockData';
 import { ContactCard } from './ContactCard';
 import { ContactListItem } from './ContactListItem';
 import { EmptyState } from '../ui/EmptyState';
 import { relationshipMeta } from '../../tokens/design-tokens';
+import { useAppStore } from '../../store/AppStore';
+import {
+  getActiveRequestForContact,
+  searchContacts,
+} from '../../selectors/dashboard';
+import type { OpenContactPayload } from '../../App';
 
 interface ContactsSectionProps {
-  onOpenContact: (contactId: string) => void;
+  onOpenContact: (contactId: string | OpenContactPayload) => void;
   activeContactId: string | null;
+  compact?: boolean;
+  onOpenCreate?: () => void;
 }
 
 const RELATIONSHIP_FILTERS: { key: RelationshipType | 'all'; label: string }[] = [
@@ -22,147 +29,193 @@ const RELATIONSHIP_FILTERS: { key: RelationshipType | 'all'; label: string }[] =
 export function ContactsSection({
   onOpenContact,
   activeContactId,
+  compact = false,
+  onOpenCreate,
 }: ContactsSectionProps) {
+  const store = useAppStore();
   const [viewMode, setViewMode] = useState<ContactsViewMode>('cards');
-  const [query, setQuery] = useState('');
   const [relFilter, setRelFilter] = useState<RelationshipType | 'all'>('all');
+  const [localQuery, setLocalQuery] = useState('');
   const [actionOnly, setActionOnly] = useState(false);
 
+  const globalQuery = store.search.query;
+  const effectiveQuery = globalQuery || localQuery;
+
   const filteredContacts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return contacts.filter((c) => {
+    const afterSearch = searchContacts({
+      contacts: store.data.contacts,
+      requests: store.data.requests,
+      query: effectiveQuery,
+    });
+    return afterSearch.filter((c) => {
       if (c.archived) return false;
       if (relFilter !== 'all' && c.relationship !== relFilter) return false;
-      const req = requests.find(
-        (r) => r.id === c.activeRequestId || r.contactId === c.id
-      );
-      if (actionOnly && !req?.nextAction) return false;
-      if (!q) return true;
-      const haystack = [
-        c.firstName,
-        c.lastName,
-        c.company,
-        req?.title,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
+      if (actionOnly) {
+        const req = getActiveRequestForContact({
+          contactId: c.id,
+          requests: store.data.requests,
+        });
+        if (!req?.nextAction) return false;
+      }
+      return true;
     });
-  }, [query, relFilter, actionOnly]);
+  }, [store.data.contacts, store.data.requests, effectiveQuery, relFilter, actionOnly]);
+
+  useEffect(() => {
+    if (globalQuery && store.nav.active === 'dashboard') {
+      setRelFilter('all');
+      setActionOnly(false);
+    }
+  }, [globalQuery, store.nav.active]);
+
+  const headingTitle = compact ? 'Aperçu des contacts' : 'Mes contacts';
+  const shown = compact ? filteredContacts.slice(0, 8) : filteredContacts;
 
   return (
     <section className="space-y-5">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3 flex-wrap">
           <h2 className="font-display font-bold text-white text-xl sm:text-2xl leading-none">
-            Mes contacts
+            {headingTitle}
           </h2>
           <span className="chip bg-white/5 text-slate-300 ring-1 ring-white/10">
-            {filteredContacts.length} contact{filteredContacts.length > 1 ? 's' : ''}
+            {shown.length} contact{shown.length > 1 ? 's' : ''}
+            {compact && filteredContacts.length > shown.length && (
+              <> / {filteredContacts.length}</>
+            )}
           </span>
           {relFilter !== 'all' && (
             <span className={`chip ${relationshipMeta[relFilter].chipBg}`}>
               {relationshipMeta[relFilter].label}
             </span>
           )}
+          {globalQuery && (
+            <span className="chip bg-brand-cyan/15 text-brand-cyan ring-1 ring-brand-cyan/25">
+              Recherche : « {globalQuery} »
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="inline-flex items-center rounded-xl bg-bg-surface/70 ring-1 ring-white/10 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              aria-pressed={viewMode === 'cards'}
-              className={`btn-toggle ${viewMode === 'cards' ? 'btn-toggle-active' : ''}`}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-              </svg>
-              <span className="hidden sm:inline">Vue cartes</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              aria-pressed={viewMode === 'list'}
-              className={`btn-toggle ${viewMode === 'list' ? 'btn-toggle-active' : ''}`}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-              <span className="hidden sm:inline">Vue liste</span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setActionOnly((v) => !v)}
-            className={`btn-ghost !py-1.5 !px-3 text-xs ${
-              actionOnly
-                ? 'bg-brand-coral/10 text-brand-coral ring-1 ring-brand-coral/25'
-                : ''
-            }`}
-            aria-pressed={actionOnly}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <span className="hidden sm:inline">À action</span>
-          </button>
-
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+          {!compact && (
+            <div className="inline-flex items-center rounded-xl bg-bg-surface/70 ring-1 ring-white/10 p-1">
+              <button
+                type="button"
+                onClick={() => { setViewMode('cards'); }}
+                aria-pressed={viewMode === 'cards'}
+                aria-label="Vue cartes"
+                className={`btn-toggle ${viewMode === 'cards' ? 'btn-toggle-active' : ''}`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                <span className="sr-only sm:not-sr-only sm:inline">Vue cartes</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setViewMode('list'); }}
+                aria-pressed={viewMode === 'list'}
+                aria-label="Vue liste"
+                className={`btn-toggle ${viewMode === 'list' ? 'btn-toggle-active' : ''}`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+                <span className="sr-only sm:not-sr-only sm:inline">Vue liste</span>
+              </button>
             </div>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher…"
-              className="h-9 w-40 sm:w-56 pl-9 pr-3 rounded-xl bg-bg-surface/70 ring-1 ring-white/10 text-sm text-slate-200 placeholder:text-slate-500
-                focus:outline-none focus:ring-2 focus:ring-brand-violet/40
-                transition-all duration-150"
-              aria-label="Rechercher parmi les contacts"
-            />
-          </div>
+          )}
+
+          {!compact && (
+            <button
+              type="button"
+              onClick={() => { setActionOnly((v) => !v); }}
+              aria-label="À action"
+              className={`btn-ghost !py-1.5 !px-3 text-xs ${
+                actionOnly
+                  ? 'bg-brand-coral/10 text-brand-coral ring-1 ring-brand-coral/25'
+                  : ''
+              }`}
+              aria-pressed={actionOnly}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span className="sr-only sm:not-sr-only sm:inline">À action</span>
+            </button>
+          )}
+
+          {!globalQuery && !compact && (
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </div>
+              <input
+                type="search"
+                value={localQuery}
+                onChange={(e) => { setLocalQuery(e.target.value); }}
+                placeholder="Rechercher…"
+                className="h-9 w-40 sm:w-56 pl-9 pr-3 rounded-xl bg-bg-surface/70 ring-1 ring-white/10 text-sm text-slate-200 placeholder:text-slate-500
+                  focus:outline-none focus:ring-2 focus:ring-brand-violet/40
+                  transition-all duration-150"
+                aria-label="Rechercher parmi les contacts"
+              />
+            </div>
+          )}
+
+          {!compact && (
+            <button
+              type="button"
+              onClick={onOpenCreate}
+              className="btn-primary !py-2 !px-3.5 text-sm inline-flex items-center gap-2"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nouveau contact
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        {RELATIONSHIP_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setRelFilter(f.key)}
-            aria-pressed={relFilter === f.key}
-            className={`btn-toggle ${relFilter === f.key ? 'btn-toggle-active' : ''}`}
-          >
-            {f.key !== 'all' && (
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  relationshipMeta[f.key as RelationshipType].dotColor
-                }`}
-                aria-hidden="true"
-              />
-            )}
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {!compact && (
+        <div className="flex flex-wrap gap-2">
+          {RELATIONSHIP_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => { setRelFilter(f.key); }}
+              aria-pressed={relFilter === f.key}
+              className={`btn-toggle ${relFilter === f.key ? 'btn-toggle-active' : ''}`}
+            >
+              {f.key !== 'all' && (
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    relationshipMeta[f.key].dotColor
+                  }`}
+                  aria-hidden="true"
+                />
+              )}
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {filteredContacts.length === 0 ? (
+      {shown.length === 0 ? (
         <EmptyState
           title="Aucun contact trouvé"
           description="Modifiez vos filtres ou votre recherche pour afficher plus de résultats."
@@ -175,13 +228,16 @@ export function ContactsSection({
         />
       ) : viewMode === 'cards' ? (
         <div
-          className="grid gap-5 sm:gap-6
-            grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+          className="grid gap-5 sm:gap-6 grid-cols-1"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          }}
         >
-          {filteredContacts.map((c) => {
-            const req = requests.find(
-              (r) => r.id === c.activeRequestId && !r.archived
-            );
+          {shown.map((c) => {
+            const req = getActiveRequestForContact({
+              contactId: c.id,
+              requests: store.data.requests,
+            });
             return (
               <ContactCard
                 key={c.id}
@@ -192,14 +248,15 @@ export function ContactsSection({
               />
             );
           })}
-          <NewContactCard />
+          {!compact && <NewContactCard onClick={onOpenCreate} />}
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filteredContacts.map((c) => {
-            const req = requests.find(
-              (r) => r.id === c.activeRequestId && !r.archived
-            );
+          {shown.map((c) => {
+            const req = getActiveRequestForContact({
+              contactId: c.id,
+              requests: store.data.requests,
+            });
             return (
               <ContactListItem
                 key={c.id}
@@ -216,11 +273,12 @@ export function ContactsSection({
   );
 }
 
-function NewContactCard() {
+function NewContactCard({ onClick }: { onClick?: () => void }) {
   return (
     <button
       type="button"
-      className="group relative aspect-[270/380] max-w-[280px] mx-auto w-full rounded-2xl
+      onClick={onClick}
+      className="group relative aspect-[270/380] mx-auto w-full rounded-2xl
         border-2 border-dashed border-white/10 hover:border-brand-violet/40
         bg-white/[0.02] hover:bg-brand-violet/[0.04]
         flex flex-col items-center justify-center text-center

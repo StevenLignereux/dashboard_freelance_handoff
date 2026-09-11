@@ -1,4 +1,6 @@
 import type { NavItemKey } from '../../types';
+import { appConfig } from '../../config/appConfig';
+import type { RefObject } from 'react';
 
 const navItems: {
   key: NavItemKey;
@@ -63,6 +65,7 @@ interface SidebarProps {
   onNavigate: (key: NavItemKey) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  lastMenuFocusRef?: RefObject<HTMLElement | null>;
 }
 
 export function Sidebar({
@@ -82,7 +85,7 @@ export function Sidebar({
       )}
       <aside
         className={`
-          fixed md:static inset-y-0 left-0 z-40 w-72 shrink-0
+          fixed md:sticky md:top-0 md:h-screen md:self-start md:max-h-screen inset-y-0 left-0 z-40 w-72 shrink-0
           bg-bg/95 md:bg-bg-surface/60 md:backdrop-blur-xl
           border-r border-white/5
           transform transition-transform duration-300 ease-snap
@@ -90,7 +93,7 @@ export function Sidebar({
           flex flex-col
         `}
       >
-        <div className="px-5 py-5 flex items-center gap-3 border-b border-white/5">
+        <div className="px-5 py-5 flex items-center gap-3 border-b border-white/5 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-violet to-brand-cyan flex items-center justify-center shadow-glow">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -98,16 +101,16 @@ export function Sidebar({
           </div>
           <div>
             <div className="font-display font-bold text-white tracking-tight text-lg leading-none">
-              Workflow
+              {appConfig.productName}
               <span className="text-brand-violet">.</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              Des contacts aux belles missions
+              {appConfig.productTagline}
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto min-h-0">
           <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Navigation
           </div>
@@ -145,18 +148,15 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="p-3 border-t border-white/5">
+        <div className="p-3 border-t border-white/5 shrink-0">
           <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-brand-violet/20 via-bg-surface2 to-brand-cyan/10 ring-1 ring-white/5">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-brand-violet/20 blur-3xl" />
             <div className="relative">
-              <div className="font-display font-semibold text-white text-sm">
-                Petites actions
-              </div>
-              <div className="font-display font-bold text-white text-lg -mt-0.5">
-                Grands projets
-              </div>
-              <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-                « Un contact aujourd'hui, une belle mission demain. »
+              <p className="text-xs text-slate-400 leading-relaxed">
+                <span className="font-serif text-lg leading-none text-brand-violet">
+                  “
+                </span>
+                {appConfig.signatureQuote}
               </p>
             </div>
           </div>
