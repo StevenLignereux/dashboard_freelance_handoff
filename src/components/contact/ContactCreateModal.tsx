@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../../store/AppStore';
 import type { RelationshipType } from '../../types';
 import { relationshipMeta } from '../../tokens/design-tokens';
@@ -14,6 +14,16 @@ const REL_OPTIONS: RelationshipType[] = [
   'client_recurrent',
   'ancien_client',
 ];
+
+const INPUT_CLASS =
+  'w-full h-10 px-3.5 rounded-xl bg-bg-surface/80 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 caret-brand-violet ' +
+  'focus:outline-none focus:ring-2 focus:ring-brand-violet/50 focus:border-brand-violet/50 ' +
+  'transition-all duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+
+const TEXTAREA_CLASS =
+  'w-full px-3.5 py-2.5 rounded-xl bg-bg-surface/80 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 caret-brand-violet ' +
+  'focus:outline-none focus:ring-2 focus:ring-brand-violet/50 focus:border-brand-violet/50 ' +
+  'transition-all duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
 
 export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
   const store = useAppStore();
@@ -31,7 +41,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
   const previouslyInert = useRef<Element[]>([]);
   const firstNameRef = useRef<HTMLInputElement | null>(null);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setFirstName('');
     setLastName('');
     setCompany('');
@@ -40,11 +50,15 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
     setNotes('');
     setRelationship('prospect');
     setSubmitted(null);
-  };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     reset();
+  }, [open, reset]);
+
+  useEffect(() => {
+    if (!open) return;
     lastFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null;
     const roots: Element[] = [];
     document.querySelectorAll<HTMLElement>('body > *').forEach((el) => {
@@ -63,6 +77,11 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
     }, 30);
 
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
@@ -91,11 +110,11 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
         first.focus();
       }
     };
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
 
     return () => {
       window.clearTimeout(focusTimer);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
       document.body.style.overflow = '';
       previouslyInert.current.forEach((el) => {
         el.removeAttribute('data-inert-modal-saved');
@@ -182,7 +201,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                   value={firstName}
                   onChange={(e) => { setFirstName(e.target.value); }}
                   required
-                  className="input"
+                  className={INPUT_CLASS}
                   placeholder="Camille"
                   autoComplete="given-name"
                 />
@@ -193,7 +212,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                   value={lastName}
                   onChange={(e) => { setLastName(e.target.value); }}
                   required
-                  className="input"
+                  className={INPUT_CLASS}
                   placeholder="Robert"
                   autoComplete="family-name"
                 />
@@ -204,7 +223,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                 type="text"
                 value={company}
                 onChange={(e) => { setCompany(e.target.value); }}
-                className="input"
+                className={INPUT_CLASS}
                 placeholder="Studio Bloom"
                 autoComplete="organization"
               />
@@ -234,7 +253,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); }}
-                  className="input"
+                  className={INPUT_CLASS}
                   placeholder="camille@studio.fr"
                   autoComplete="email"
                 />
@@ -244,7 +263,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                   type="tel"
                   value={phone}
                   onChange={(e) => { setPhone(e.target.value); }}
-                  className="input"
+                  className={INPUT_CLASS}
                   placeholder="+33 6 00 00 00 00"
                   autoComplete="tel"
                 />
@@ -255,7 +274,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                 value={notes}
                 onChange={(e) => { setNotes(e.target.value); }}
                 rows={3}
-                className="input resize-none"
+                className={`${TEXTAREA_CLASS} resize-none`}
                 placeholder="Premières impressions, budget estimé, contexte…"
               />
             </Field>

@@ -9,9 +9,10 @@ import {
   getActiveRequestForContact,
   searchContacts,
 } from '../../selectors/dashboard';
+import type { OpenContactPayload } from '../../App';
 
 interface ContactsSectionProps {
-  onOpenContact: (contactId: string) => void;
+  onOpenContact: (contactId: string | OpenContactPayload) => void;
   activeContactId: string | null;
   compact?: boolean;
   onOpenCreate?: () => void;
@@ -102,6 +103,7 @@ export function ContactsSection({
                 type="button"
                 onClick={() => { setViewMode('cards'); }}
                 aria-pressed={viewMode === 'cards'}
+                aria-label="Vue cartes"
                 className={`btn-toggle ${viewMode === 'cards' ? 'btn-toggle-active' : ''}`}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -110,12 +112,13 @@ export function ContactsSection({
                   <rect x="3" y="14" width="7" height="7" rx="1" />
                   <rect x="14" y="14" width="7" height="7" rx="1" />
                 </svg>
-                <span className="hidden sm:inline">Vue cartes</span>
+                <span className="sr-only sm:not-sr-only sm:inline">Vue cartes</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setViewMode('list'); }}
                 aria-pressed={viewMode === 'list'}
+                aria-label="Vue liste"
                 className={`btn-toggle ${viewMode === 'list' ? 'btn-toggle-active' : ''}`}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -126,7 +129,7 @@ export function ContactsSection({
                   <line x1="3" y1="12" x2="3.01" y2="12" />
                   <line x1="3" y1="18" x2="3.01" y2="18" />
                 </svg>
-                <span className="hidden sm:inline">Vue liste</span>
+                <span className="sr-only sm:not-sr-only sm:inline">Vue liste</span>
               </button>
             </div>
           )}
@@ -135,6 +138,7 @@ export function ContactsSection({
             <button
               type="button"
               onClick={() => { setActionOnly((v) => !v); }}
+              aria-label="À action"
               className={`btn-ghost !py-1.5 !px-3 text-xs ${
                 actionOnly
                   ? 'bg-brand-coral/10 text-brand-coral ring-1 ring-brand-coral/25'
@@ -146,7 +150,7 @@ export function ContactsSection({
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              <span className="hidden sm:inline">À action</span>
+              <span className="sr-only sm:not-sr-only sm:inline">À action</span>
             </button>
           )}
 
@@ -224,8 +228,10 @@ export function ContactsSection({
         />
       ) : viewMode === 'cards' ? (
         <div
-          className="grid gap-5 sm:gap-6
-            grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+          className="grid gap-5 sm:gap-6 grid-cols-1"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          }}
         >
           {shown.map((c) => {
             const req = getActiveRequestForContact({
@@ -272,7 +278,7 @@ function NewContactCard({ onClick }: { onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="group relative aspect-[270/380] max-w-[280px] mx-auto w-full rounded-2xl
+      className="group relative aspect-[270/380] mx-auto w-full rounded-2xl
         border-2 border-dashed border-white/10 hover:border-brand-violet/40
         bg-white/[0.02] hover:bg-brand-violet/[0.04]
         flex flex-col items-center justify-center text-center

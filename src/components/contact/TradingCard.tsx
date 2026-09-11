@@ -3,7 +3,7 @@ import type { Contact, Request } from '../../types';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RelationshipBadge } from '../ui/RelationshipBadge';
 import { NextActionView } from '../ui/NextActionView';
-import { getInitials, useAvatarGradient } from '../../utils/formatting';
+import { getInitials, pluralize, useAvatarGradient } from '../../utils/formatting';
 import { statusMeta } from '../../tokens/design-tokens';
 import { useReducedMotion } from '../../store/AppStore';
 
@@ -184,7 +184,7 @@ export function TradingCard({
                 <div className="shrink-0 min-w-0">
                   <NextActionView
                     action={activeRequest.nextAction}
-                    variant={dense ? 'compact' : 'standard'}
+                    variant="compact"
                   />
                 </div>
               )}
@@ -209,7 +209,7 @@ export function TradingCard({
                 {contact.totalRequests}
               </span>
               <span className="text-slate-500 truncate min-w-0">
-                demande{contact.totalRequests > 1 ? 's' : ''}
+                {pluralize(contact.totalRequests, 'demande')}
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5 min-w-0 justify-end">
@@ -221,7 +221,7 @@ export function TradingCard({
                 {contact.totalMissions}
               </span>
               <span className="text-slate-500 truncate min-w-0">
-                mission{contact.totalMissions > 1 ? 's' : ''}
+                {pluralize(contact.totalMissions, 'mission')}
               </span>
             </span>
           </div>

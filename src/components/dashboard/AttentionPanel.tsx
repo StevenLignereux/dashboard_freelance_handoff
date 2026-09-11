@@ -1,4 +1,4 @@
-import { formatDueDate } from '../../utils/formatting';
+import { formatScheduleLabel } from '../../utils/formatting';
 import type { DashboardItem } from '../../selectors/dashboard';
 
 interface AttentionPanelProps {
@@ -40,7 +40,7 @@ export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
 
         <ul className="space-y-2">
           {items.map((item) => {
-            const { when, hour } = formatDueDate(item.action.dueDate);
+            const schedule = formatScheduleLabel(item.action.dueDate);
             return (
               <li key={item.id}>
                 <button
@@ -60,19 +60,18 @@ export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
                       {item.label}
                     </div>
                     <div className="text-xs text-brand-coral font-medium mt-0.5 flex items-center gap-1.5">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0" aria-hidden="true">
                         <polyline points="23 4 23 10 17 10" />
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                       </svg>
-                      <span>{item.sub}</span>
+                      <span className="truncate">{item.sub}</span>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {when}
-                      {hour && <span> · {hour}</span>}
+                    <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                      {schedule}
                     </div>
                   </div>
                   <span
-                    className="text-slate-500 group-hover:text-white transition-colors"
+                    className="text-slate-500 group-hover:text-white transition-colors shrink-0"
                     aria-hidden="true"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

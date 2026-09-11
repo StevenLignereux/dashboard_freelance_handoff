@@ -5,9 +5,11 @@ import { ContactsSection } from '../components/contact/ContactsSection';
 import { useAppStore } from '../store/AppStore';
 import { buildDashboardData } from '../selectors/dashboard';
 import { currentUser, appConfig } from '../config/appConfig';
+import { pluralize } from '../utils/formatting';
+import type { OpenContactPayload } from '../App';
 
 interface DashboardPageProps {
-  onOpenContact: (contactId: string) => void;
+  onOpenContact: (contactId: string | OpenContactPayload) => void;
   activeContactId: string | null;
 }
 
@@ -36,7 +38,7 @@ export function DashboardPage({
           </h1>
           <p className="text-slate-400 text-sm sm:text-base">
             <span className="text-brand-violet font-semibold">
-              {totalAttention} chose{totalAttention > 1 ? 's' : ''}
+              {totalAttention} {pluralize(totalAttention, 'chose')}
             </span>{' '}
             méritent ton attention aujourd&rsquo;hui.
           </p>

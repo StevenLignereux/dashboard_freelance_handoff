@@ -2,14 +2,15 @@ import type { Contact, Request } from '../../types';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RelationshipBadge } from '../ui/RelationshipBadge';
 import { NextActionView } from '../ui/NextActionView';
-import { getInitials, useAvatarGradient } from '../../utils/formatting';
+import { getInitials, pluralize, useAvatarGradient } from '../../utils/formatting';
 import { statusMeta } from '../../tokens/design-tokens';
+import type { OpenContactPayload } from '../../App';
 
 interface ContactListItemProps {
   contact: Contact;
   activeRequest?: Request;
   isActive?: boolean;
-  onOpen: (contactId: string) => void;
+  onOpen: (contactId: string | OpenContactPayload) => void;
 }
 
 export function ContactListItem({
@@ -46,8 +47,8 @@ export function ContactListItem({
           </span>
         </div>
 
-        <div className="min-w-0 flex-1 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
-          <div className="min-w-0 lg:min-w-[220px] lg:flex-1">
+        <div className="min-w-0 flex-1 flex flex-col xl:flex-row xl:items-start gap-3 xl:gap-6">
+          <div className="min-w-0 xl:min-w-[220px] xl:flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-display font-semibold text-white text-base truncate">
                 {contact.firstName} {contact.lastName}
@@ -61,7 +62,7 @@ export function ContactListItem({
             )}
           </div>
 
-          <div className="min-w-0 lg:min-w-[240px] lg:flex-1">
+          <div className="min-w-0 xl:min-w-[240px] xl:flex-1">
             {activeRequest ? (
               <div className="space-y-1.5">
                 <p className="text-sm text-slate-200 truncate">
@@ -79,13 +80,13 @@ export function ContactListItem({
             )}
           </div>
 
-          <div className="min-w-0 lg:min-w-[260px] lg:flex-1">
+          <div className="min-w-0 xl:min-w-[260px] xl:flex-1">
             {activeRequest?.nextAction && (
               <NextActionView action={activeRequest.nextAction} variant="compact" />
             )}
           </div>
 
-          <div className="hidden lg:flex shrink-0 items-center gap-4 pl-4 border-l border-white/5">
+          <div className="hidden xl:flex shrink-0 items-center gap-4 pl-4 border-l border-white/5">
             <div className="text-right space-y-1">
               <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
                 Historique
@@ -94,11 +95,11 @@ export function ContactListItem({
                 <span className="font-bold text-white tabular-nums">
                   {contact.totalRequests}
                 </span>{' '}
-                demandes ·{' '}
+                {pluralize(contact.totalRequests, 'demande')} ·{' '}
                 <span className="font-bold text-white tabular-nums">
                   {contact.totalMissions}
                 </span>{' '}
-                missions
+                {pluralize(contact.totalMissions, 'mission')}
               </div>
             </div>
             <span

@@ -1,4 +1,4 @@
-import { formatDueDate } from '../../utils/formatting';
+import { formatScheduleLabel } from '../../utils/formatting';
 import type { DashboardItem } from '../../selectors/dashboard';
 
 interface TodayPanelProps {
@@ -47,7 +47,7 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
 
         <ul className="space-y-2">
           {items.map((item) => {
-            const { hour } = formatDueDate(item.action.dueDate);
+            const schedule = formatScheduleLabel(item.action.dueDate);
             return (
               <li key={item.id}>
                 <button
@@ -69,18 +69,16 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
                     <div className="text-xs text-slate-300 mt-0.5 truncate">
                       {item.sub}
                     </div>
-                    {hour && (
-                      <div className={`text-[11px] font-medium mt-0.5 flex items-center gap-1 ${color.hour}`}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3" aria-hidden="true">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        {hour}
-                      </div>
-                    )}
+                    <div className={`text-[11px] font-medium mt-0.5 flex items-center gap-1 ${color.hour}`}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span className="truncate">{schedule}</span>
+                    </div>
                   </div>
                   <span
-                    className="text-slate-500 group-hover:text-white transition-colors"
+                    className="text-slate-500 group-hover:text-white transition-colors shrink-0"
                     aria-hidden="true"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

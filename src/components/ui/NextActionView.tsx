@@ -1,5 +1,5 @@
 import type { NextAction } from '../../types';
-import { formatDueDate } from '../../utils/formatting';
+import { formatScheduleLabel } from '../../utils/formatting';
 import { nextActionLabels } from '../../tokens/design-tokens';
 
 interface NextActionProps {
@@ -8,7 +8,7 @@ interface NextActionProps {
 }
 
 export function NextActionView({ action, variant = 'standard' }: NextActionProps) {
-  const { when, dateLabel, hour } = formatDueDate(action.dueDate);
+  const scheduleLabel = formatScheduleLabel(action.dueDate);
   const isOverdue = action.isOverdue;
   const isToday = action.isToday;
 
@@ -58,14 +58,12 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
         >
           {icon}
         </span>
-        <div className="min-w-0">
-          <div className={`text-xs font-medium ${toneClass} truncate`}>
+        <div className="min-w-0 flex-1">
+          <div className={`text-[12px] font-medium ${toneClass} truncate`} title={actionLabel}>
             {actionLabel}
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
-            {when}
-            {hour && isToday && <span aria-hidden="true">·</span>}
-            {hour && isToday && <span>{hour}</span>}
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 min-w-0">
+            <span className="truncate">{scheduleLabel}</span>
           </div>
         </div>
       </div>
@@ -75,7 +73,7 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
   return (
     <div
       className={[
-        'flex items-start gap-2.5 p-2.5 rounded-xl ring-1',
+        'flex items-start gap-2.5 p-2.5 rounded-xl ring-1 min-w-0',
         isOverdue
           ? 'bg-brand-coral/5 ring-brand-coral/15'
           : isToday
@@ -90,23 +88,15 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <div className={`text-sm font-semibold ${toneClass}`}>
+        <div className={`text-sm font-semibold ${toneClass} truncate`} title={actionLabel}>
           {actionLabel}
         </div>
-        <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
-          <span>{when}</span>
-          <span aria-hidden="true">·</span>
-          <span>{dateLabel}</span>
-          {hour && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{hour}</span>
-            </>
-          )}
+        <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap min-w-0">
+          <span className="truncate">{scheduleLabel}</span>
           {isOverdue && action.overdueDays && (
             <>
               <span aria-hidden="true">·</span>
-              <span className="text-brand-coral font-semibold">
+              <span className="text-brand-coral font-semibold truncate">
                 Retard : {action.overdueDays} j
               </span>
             </>

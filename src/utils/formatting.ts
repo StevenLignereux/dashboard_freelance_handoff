@@ -2,9 +2,23 @@ import { clock } from '../config/clock';
 import { useMemo } from 'react';
 
 export function getInitials(firstName: string, lastName: string): string {
-  return (
-    firstName.charAt(0) + lastName.charAt(0)
-  ).toUpperCase();
+  return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+}
+
+export function pluralize(
+  count: number,
+  singular: string,
+  plural?: string
+): string {
+  return count <= 1 ? singular : plural ?? `${singular}s`;
+}
+
+export function withCount(
+  count: number,
+  singular: string,
+  plural?: string
+): string {
+  return `${count} ${pluralize(count, singular, plural)}`;
 }
 
 const palette = [
@@ -85,4 +99,26 @@ export function formatDueDate(iso: string): {
   const dateLabel = `${weekdays[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
 
   return { when, dateLabel, weekday: weekdays[date.getDay()], hour };
+}
+
+/**
+ * Formatte une date en étiquette courte de planning.
+ *  - J : Aujourd'hui · HHh
+ *  - J+1 : Demain · HHh
+ *  - ≤ 6 j : Jj DD mmm · HHh (Lun 15 sept. · 10h)
+ *  - Lointain : Jj DD mmm · HHh (Jeu 26 nov. · 10h)
+ * Pas de duplication : la date n'apparaît qu'une seule fois.
+ */
+export function formatScheduleLabel(iso: string): string {
+  const { when, dateLabel, hour } = formatDueDate(iso);
+  const h = hour ?? '';
+  const sep = h ? ' · ' : '';
+  if (when.startsWith("Aujourd'hui") || when === 'Demain') {
+    return `${when}${sep}${h}`;
+  }
+  if (when.startsWith('En retard')) {
+    return h ? `${when}${sep}${h}` : when;
+  }
+  const shortDate = dateLabel;
+  return `${shortDate}${sep}${h}`;
 }

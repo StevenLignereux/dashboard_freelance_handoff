@@ -4,14 +4,16 @@ import { currentUser } from '../../config/appConfig';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
+  menuButtonRef?: React.MutableRefObject<HTMLButtonElement | null>;
 }
 
-export function TopBar({ onToggleSidebar }: TopBarProps) {
+export function TopBar({ onToggleSidebar, menuButtonRef }: TopBarProps) {
   const store = useAppStore();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        if (document.querySelector('[aria-modal="true"]')) return;
         e.preventDefault();
         const el = document.getElementById('global-search');
         if (el) el.focus();
@@ -26,6 +28,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
       <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center gap-3 md:gap-4 bg-bg/70 backdrop-blur-xl border-b border-white/5">
         <button
           type="button"
+          ref={menuButtonRef}
           className="btn-ghost md:hidden !p-2"
           onClick={onToggleSidebar}
           aria-label="Ouvrir le menu"

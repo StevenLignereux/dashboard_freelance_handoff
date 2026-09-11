@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { DashboardPage } from './pages/DashboardPage';
 import { ContactsPage } from './pages/ContactsPage';
@@ -9,39 +9,66 @@ import { ContactCardModal } from './components/contact/ContactCardModal';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
 import { ContactCreateModal } from './components/contact/ContactCreateModal';
 
+export interface OpenContactPayload {
+  contactId: string;
+  requestId?: string;
+}
+
 function Router() {
   const store = useAppStore();
-  const [activeContactId, setActiveContactId] = useState<string | null>(null);
+  const [activeContact, setActiveContact] = useState<OpenContactPayload | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  const handleCloseContact = useCallback(() => {
+    setActiveContact(null);
+  }, []);
+
+  const handleOpenContact = useCallback((payload: string | OpenContactPayload) => {
+    if (typeof payload === 'string') {
+      setActiveContact({ contactId: payload });
+    } else {
+      setActiveContact(payload);
+    }
+  }, []);
+
+  const handleCloseCreate = useCallback(() => {
+    setCreateOpen(false);
+  }, []);
+
+  const handleOpenCreate = useCallback(() => {
+    setCreateOpen(true);
+  }, []);
 
   return (
     <AppShell>
       {store.nav.active === 'dashboard' && (
         <DashboardPage
-          onOpenContact={setActiveContactId}
-          activeContactId={activeContactId}
+          onOpenContact={handleOpenContact}
+          activeContactId={activeContact?.contactId ?? null}
         />
       )}
       {store.nav.active === 'contacts' && (
         <ContactsPage
-          onOpenContact={setActiveContactId}
-          activeContactId={activeContactId}
+          onOpenContact={handleOpenContact}
+          activeContactId={activeContact?.contactId ?? null}
+          onOpenCreate={handleOpenCreate}
         />
       )}
       {store.nav.active === 'requests' && (
-        <RequestsPage onOpenContact={setActiveContactId} />
+        <RequestsPage onOpenContact={handleOpenContact} />
       )}
       {store.nav.active === 'missions' && (
-        <MissionsPage onOpenContact={setActiveContactId} />
+        <MissionsPage onOpenContact={handleOpenContact} />
       )}
       {store.nav.active === 'settings' && <SettingsPage />}
       <ContactCardModal
-        contactId={activeContactId}
-        onClose={() => { setActiveContactId(null); }}
+        contactId={activeContact?.contactId ?? null}
+        requestId={activeContact?.requestId}
+        onClose={handleCloseContact}
       />
       <ContactCreateModal
         open={createOpen}
-        onClose={() => { setCreateOpen(false); }}
+        onClose={handleCloseCreate}
       />
     </AppShell>
   );

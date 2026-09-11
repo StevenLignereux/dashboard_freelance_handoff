@@ -4,7 +4,7 @@ import { useAppStore, useReducedMotion } from '../../store/AppStore';
 import { StatusBadge } from '../ui/StatusBadge';
 import { RelationshipBadge } from '../ui/RelationshipBadge';
 import { NextActionView } from '../ui/NextActionView';
-import { formatDueDate } from '../../utils/formatting';
+import { formatDueDate, pluralize } from '../../utils/formatting';
 import {
   getActiveRequestForContact,
   getExchangesForContact,
@@ -16,6 +16,7 @@ import { TradingCard } from './TradingCard';
 
 interface ContactCardModalProps {
   contactId: string | null;
+  requestId?: string | null | undefined;
   onClose: () => void;
 }
 
@@ -46,7 +47,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, onClose }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -55,10 +56,12 @@ export function ContactCardModal({ contactId, onClose }: ContactCardModalProps) 
 
   const contact = store.data.contacts.find((c) => c.id === contactId) ?? null;
   const activeRequest: Request | undefined = contact
-    ? getActiveRequestForContact({
-        contactId: contact.id,
-        requests: store.data.requests,
-      })
+    ? (requestId
+        ? store.data.requests.find((r) => r.id === requestId)
+        : getActiveRequestForContact({
+            contactId: contact.id,
+            requests: store.data.requests,
+          }))
     : undefined;
   const contactMissions: Mission[] = contact
     ? getMissionsForContact({ contactId: contact.id, missions: store.data.missions })
@@ -137,6 +140,18 @@ export function ContactCardModal({ contactId, onClose }: ContactCardModalProps) 
       }
     };
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyCmdK = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('keydown', onKeyCmdK, true);
+    return () => { window.removeEventListener('keydown', onKeyCmdK, true); };
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -246,6 +261,7 @@ export function ContactCardModal({ contactId, onClose }: ContactCardModalProps) 
                       ...activeRequest,
                       nextAction: nextActionHydrated,
                     }}
+                    isActive={!requestId}
                   />
                 )}
                 <StatsBlock contact={contact} />
@@ -335,12 +351,12 @@ function ContactIdentity({ contact }: { contact: Contact }) {
   );
 }
 
-function RequestBlock({ request }: { request: Request }) {
+function RequestBlock({ request, isActive = true }: { request: Request; isActive?: boolean }) {
   return (
     <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">
-          Demande active
+          {isActive ? 'Demande active' : 'Demande'}
         </p>
         <StatusBadge status={request.status} />
       </div>
@@ -389,7 +405,9 @@ function StatsBlock({ contact }: { contact: Contact }) {
           <span className="font-display font-bold text-white text-2xl tabular-nums">
             {contact.totalMissions}
           </span>
-          <span className="text-xs text-slate-400">réalisées</span>
+          <span className="text-xs text-slate-400">
+            {pluralize(contact.totalMissions, 'réalisée', 'réalisées')}
+          </span>
         </div>
       </div>
     </section>

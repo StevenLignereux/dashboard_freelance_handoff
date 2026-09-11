@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useAppStore } from '../store/AppStore';
 import { EmptyState } from '../components/ui/EmptyState';
 import type { Mission } from '../types';
+import type { OpenContactPayload } from '../App';
 
 const missionStatusMeta: Record<Mission['status'], { label: string; tone: 'green' | 'violet' | 'slate' | 'amber' }> = {
   a_demarrer: { label: 'À démarrer', tone: 'violet' },
@@ -23,7 +24,7 @@ function toneClasses(tone: 'green' | 'violet' | 'slate' | 'amber'): string {
   }
 }
 
-function MissionCard({ mission, contactName, onOpenContact }: { mission: Mission; contactName: string; onOpenContact: (id: string) => void }) {
+function MissionCard({ mission, contactName, onOpenContact }: { mission: Mission; contactName: string; onOpenContact: (id: string | OpenContactPayload) => void }) {
   const meta = missionStatusMeta[mission.status];
   const progress = mission.progress ?? 0;
   return (
@@ -67,7 +68,7 @@ function MissionCard({ mission, contactName, onOpenContact }: { mission: Mission
 }
 
 interface MissionsPageProps {
-  onOpenContact: (contactId: string) => void;
+  onOpenContact: (contactId: string | OpenContactPayload) => void;
 }
 
 export function MissionsPage({ onOpenContact }: MissionsPageProps) {

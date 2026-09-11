@@ -6,16 +6,17 @@ import { NextActionView } from '../components/ui/NextActionView';
 import { EmptyState } from '../components/ui/EmptyState';
 import { hydrateNextAction } from '../selectors/dashboard';
 import type { Request } from '../types';
+import type { OpenContactPayload } from '../App';
 
 interface RequestsPageProps {
-  onOpenContact: (contactId: string) => void;
+  onOpenContact: (payload: string | OpenContactPayload) => void;
 }
 
-function RequestRow({ r, contactName, onOpenContact }: { r: Request; contactName: string; onOpenContact: (id: string) => void }) {
+function RequestRow({ r, contactName, onOpenContact }: { r: Request; contactName: string; onOpenContact: (payload: OpenContactPayload) => void }) {
   const action = hydrateNextAction(r.nextAction);
   return (
     <button
-      onClick={() => { onOpenContact(r.contactId); }}
+      onClick={() => { onOpenContact({ contactId: r.contactId, requestId: r.id }); }}
       className="group w-full surface p-4 text-left hover:ring-brand-violet/30 transition-all active:scale-[0.998]"
     >
       <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
@@ -104,7 +105,7 @@ export function RequestsPage({ onOpenContact }: RequestsPageProps) {
                 key={r.id}
                 r={r}
                 contactName={contactName}
-                onOpenContact={onOpenContact}
+                onOpenContact={(p) => { onOpenContact(p); }}
               />
             );
           })}
