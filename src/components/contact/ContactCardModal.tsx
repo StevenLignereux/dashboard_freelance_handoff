@@ -197,8 +197,35 @@ export function ContactCardModal({ contactId, onClose }: ContactCardModalProps) 
               </svg>
             </button>
 
-            <div className="relative z-10 w-full lg:w-[360px] shrink-0 p-4 sm:p-6 lg:p-8 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 bg-gradient-to-b lg:bg-gradient-to-br from-white/[0.03] to-transparent">
-              <div className="w-full max-w-[300px] lg:max-w-[320px]">
+            <div className="relative z-10 w-full lg:w-[410px] shrink-0 p-4 sm:p-5 lg:p-5 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 overflow-hidden">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  backgroundImage: [
+                    'radial-gradient(600px 420px at 50% 20%, rgba(124,92,255,0.16), transparent 55%)',
+                    'radial-gradient(500px 380px at 50% 100%, rgba(34,211,238,0.10), transparent 55%)',
+                  ].join(','),
+                }}
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-30"
+                style={{
+                  backgroundImage:
+                    'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence baseFrequency=%220.85%22 numOctaves=%222%22 stitchTiles=%22stitch%22/><feColorMatrix values=%220 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>")',
+                }}
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-6 lg:inset-x-5 top-1/2 -translate-y-1/2 h-[86%] rounded-[2rem] transition-all"
+                style={{
+                  background:
+                    'radial-gradient(closest-side at 50% 50%, rgba(255,255,255,0.06), rgba(255,255,255,0.00) 70%)',
+                  filter: 'blur(0.5px)',
+                }}
+              />
+              <div className="relative z-10 w-full max-w-[350px] mx-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.55)]">
                 <TradingCard
                   layoutId={`card-${contact.id}`}
                   contact={contact}
