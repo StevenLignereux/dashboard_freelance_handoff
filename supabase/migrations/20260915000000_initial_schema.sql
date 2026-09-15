@@ -135,7 +135,6 @@ CREATE TABLE requests (
   user_id           uuid           NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   -- FK composite vers contacts(id, user_id) : empêche référence croisée
   contact_id        uuid           NOT NULL,
-  user_id_fk_check  uuid           GENERATED ALWAYS AS (user_id) STORED,
   title             text           NOT NULL CHECK (char_length(title) > 0),
   description       text,
   status            request_status NOT NULL DEFAULT 'nouveau',
@@ -158,7 +157,7 @@ CREATE TABLE requests (
 -- Index unique partiel : au plus une demande active par (user, contact)
 CREATE UNIQUE INDEX requests_one_active_per_contact
   ON requests (user_id, contact_id)
-  WHERE is_active = true AND archived = false;
+  WHERE is_active = true;
 
 CREATE INDEX requests_user_id_idx      ON requests (user_id);
 CREATE INDEX requests_contact_id_idx   ON requests (contact_id);
