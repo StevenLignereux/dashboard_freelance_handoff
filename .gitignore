@@ -13,3 +13,7 @@ tmp/
 
 # Supabase local state (ne pas versionner)
 supabase/.temp/
+supabase/.branches/
+
+# TypeScript build artifacts
+*.tsbuildinfo

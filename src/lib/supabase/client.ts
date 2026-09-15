@@ -11,6 +11,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
 const PLACEHOLDER_URL = 'https://your-project-ref.supabase.co';
 const PLACEHOLDER_KEY = 'your-anon-publishable-key';
@@ -30,11 +31,11 @@ export const isSupabaseConfigured: boolean =
   isValidValue(supabaseUrl, PLACEHOLDER_URL) &&
   isValidValue(supabaseKey, PLACEHOLDER_KEY);
 
-function buildClient(): SupabaseClient | null {
+function buildClient(): SupabaseClient<Database> | null {
   if (!isValidValue(supabaseUrl, PLACEHOLDER_URL) || !isValidValue(supabaseKey, PLACEHOLDER_KEY)) {
     return null;
   }
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient<Database>(supabaseUrl, supabaseKey);
 }
 
 /**
@@ -42,4 +43,4 @@ function buildClient(): SupabaseClient | null {
  * Vaut null si les variables d'environnement ne sont pas configurées.
  * Utiliser `isSupabaseConfigured` avant tout accès.
  */
-export const supabase: SupabaseClient | null = buildClient();
+export const supabase: SupabaseClient<Database> | null = buildClient();

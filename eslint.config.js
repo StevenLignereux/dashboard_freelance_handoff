@@ -44,5 +44,13 @@ export default tseslint.config(
         ...globals.node,
       },
     },
+  },
+  {
+    files: ['src/lib/supabase/database.types.ts'],
+    rules: {
+      '@typescript-eslint/consistent-type-definitions': 'off',
+      '@typescript-eslint/consistent-indexed-object-style': 'off',
+      '@typescript-eslint/no-redundant-type-constituents': 'off',
+    },
   }
 );
