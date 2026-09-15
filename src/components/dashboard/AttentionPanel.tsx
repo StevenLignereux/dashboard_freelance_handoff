@@ -1,12 +1,13 @@
-import { dashboardAttentionItems } from '../../data/mockData';
-import { formatDueDate } from '../../utils/formatting';
+import { formatScheduleLabel } from '../../utils/formatting';
+import type { DashboardItem } from '../../selectors/dashboard';
 
 interface AttentionPanelProps {
+  items: DashboardItem[];
   onOpenContact: (contactId: string) => void;
 }
 
-export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
-  const count = dashboardAttentionItems.length;
+export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
+  const count = items.length;
 
   return (
     <section className="surface relative overflow-hidden p-5">
@@ -38,12 +39,12 @@ export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
         </header>
 
         <ul className="space-y-2">
-          {dashboardAttentionItems.map((item) => {
-            const { when, hour } = formatDueDate(item.action.dueDate);
+          {items.map((item) => {
+            const schedule = formatScheduleLabel(item.action.dueDate);
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => onOpenContact(item.contactId)}
+                  onClick={() => { onOpenContact(item.contactId); }}
                   className="group w-full flex items-center gap-3 p-3 rounded-xl ring-1 ring-transparent
                     hover:bg-white/5 hover:ring-white/10
                     active:scale-[0.99]
@@ -59,19 +60,18 @@ export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
                       {item.label}
                     </div>
                     <div className="text-xs text-brand-coral font-medium mt-0.5 flex items-center gap-1.5">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0" aria-hidden="true">
                         <polyline points="23 4 23 10 17 10" />
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                       </svg>
-                      <span>{item.sub}</span>
+                      <span className="truncate">{item.sub}</span>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {when}
-                      {hour && <span> · {hour}</span>}
+                    <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                      {schedule}
                     </div>
                   </div>
                   <span
-                    className="text-slate-500 group-hover:text-white transition-colors"
+                    className="text-slate-500 group-hover:text-white transition-colors shrink-0"
                     aria-hidden="true"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -82,6 +82,11 @@ export function AttentionPanel({ onOpenContact }: AttentionPanelProps) {
               </li>
             );
           })}
+          {items.length === 0 && (
+            <li className="p-5 text-center text-sm text-slate-500">
+              Aucun retard — bon travail.
+            </li>
+          )}
         </ul>
       </div>
     </section>
