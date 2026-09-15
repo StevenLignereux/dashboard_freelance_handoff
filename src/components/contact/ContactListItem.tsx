@@ -47,8 +47,8 @@ export function ContactListItem({
           </span>
         </div>
 
-        <div className="min-w-0 flex-1 flex flex-col xl:flex-row xl:items-start gap-3 xl:gap-6">
-          <div className="min-w-0 xl:min-w-[220px] xl:flex-1">
+        <div className="min-w-0 flex-1 flex flex-col 2xl:flex-row 2xl:items-start gap-3 2xl:gap-6">
+          <div className="min-w-0 2xl:min-w-[220px] 2xl:flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-display font-semibold text-white text-base truncate">
                 {contact.firstName} {contact.lastName}
@@ -62,7 +62,7 @@ export function ContactListItem({
             )}
           </div>
 
-          <div className="min-w-0 xl:min-w-[240px] xl:flex-1">
+          <div className="min-w-0 2xl:min-w-[240px] 2xl:flex-1">
             {activeRequest ? (
               <div className="space-y-1.5">
                 <p className="text-sm text-slate-200 truncate">
@@ -80,13 +80,13 @@ export function ContactListItem({
             )}
           </div>
 
-          <div className="min-w-0 xl:min-w-[260px] xl:flex-1">
+          <div className="min-w-0 2xl:min-w-[260px] 2xl:flex-1">
             {activeRequest?.nextAction && (
               <NextActionView action={activeRequest.nextAction} variant="compact" />
             )}
           </div>
 
-          <div className="hidden xl:flex shrink-0 items-center gap-4 pl-4 border-l border-white/5">
+          <div className="hidden 2xl:flex shrink-0 items-center gap-4 pl-4 border-l border-white/5">
             <div className="text-right space-y-1">
               <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
                 Historique

@@ -55,13 +55,17 @@ export function ContactCardModal({ contactId, requestId, onClose }: ContactCardM
   const previouslyInert = useRef<Element[]>([]);
 
   const contact = store.data.contacts.find((c) => c.id === contactId) ?? null;
+  const selectedRequest = contact && requestId
+    ? store.data.requests.find(
+        (r) => r.id === requestId && r.contactId === contact.id
+      )
+    : undefined;
   const activeRequest: Request | undefined = contact
-    ? (requestId
-        ? store.data.requests.find((r) => r.id === requestId)
-        : getActiveRequestForContact({
-            contactId: contact.id,
-            requests: store.data.requests,
-          }))
+    ? (selectedRequest ??
+      getActiveRequestForContact({
+        contactId: contact.id,
+        requests: store.data.requests,
+      }))
     : undefined;
   const contactMissions: Mission[] = contact
     ? getMissionsForContact({ contactId: contact.id, missions: store.data.missions })

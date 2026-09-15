@@ -54,6 +54,31 @@ describe('ContactCardModal — BUG 7 : ouvrir la demande sélectionnée', () => 
       screen.queryByRole('heading', { level: 3, name: /Devis dépannage/i })
     ).not.toBeInTheDocument();
   });
+
+  it('retombe sur la demande active si le requestId appartient à un AUTRE contact', () => {
+    render(
+      withWrapper(
+        <ContactCardModal
+          contactId="c-jean-dupont"
+          requestId="r-sophie-ecom"
+          onClose={noop}
+        />
+      )
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        level: 3,
+        name: /Création site vitrine/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', {
+        level: 3,
+        name: /Refonte site e-commerce/i,
+      })
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe('ContactCardModal — BUG 4 : Ctrl/Cmd+K ne déplace pas le focus hors modale', () => {
