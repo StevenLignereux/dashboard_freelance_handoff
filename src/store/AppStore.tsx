@@ -1,3 +1,10 @@
+/**
+ * App Store - Provider + Hooks.
+ *
+ * Backend 1C : connexion à la couche Repository via IRepository.
+ * Ne connaît PLUS directement seedData.
+ */
+
 import {
   createContext,
   useCallback,
@@ -8,14 +15,21 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  seedContacts,
-  seedExchanges,
-  seedMissions,
-  seedRequests,
-} from '../data/seedData';
 import type { Contact, Exchange, Mission, NavItemKey, Request } from '../types';
 import { clock } from '../config/clock';
+import type { CreateContactInput, IRepository } from '../data/repositories/interface';
+import { createRepository } from '../data/repositories/factory';
+
+interface AppStoreDataSlice {
+  contacts: Contact[];
+  requests: Request[];
+  missions: Mission[];
+  exchanges: Exchange[];
+  loading: boolean;
+  error: string | null;
+  reload: () => Promise<void>;
+  addContact: (input: CreateContactInput) => Promise<Contact>;
+}
 
 interface AppStoreValue {
   nav: {
@@ -26,29 +40,48 @@ interface AppStoreValue {
     query: string;
     setQuery: (s: string) => void;
   };
-  data: {
-    contacts: Contact[];
-    requests: Request[];
-    missions: Mission[];
-    exchanges: Exchange[];
-    addContact: (c: Omit<Contact, 'id' | 'createdAt' | 'lastActivityAt' | 'totalRequests' | 'totalMissions' | 'avatarSeed' | 'activeRequestId' | 'archived'> & { relationship: Contact['relationship'] }) => Contact;
-  };
+  data: AppStoreDataSlice;
   ui: {
     reducedMotion: boolean;
     now: Date;
   };
 }
 
+export type AppStoreData = AppStoreDataSlice;
+
+interface AppStoreProviderProps {
+  children: ReactNode;
+  /**
+   * Repository à utiliser.
+   * Si non fourni : création via la factory (DEFAULT_DATA_SOURCE = seed).
+   * Injection préférée en tests : un faux repository injecté par Provider.
+   */
+  repository?: IRepository;
+}
+
 const AppStoreContext = createContext<AppStoreValue | null>(null);
 
-export function AppStoreProvider({ children }: { children: ReactNode }) {
+export function AppStoreProvider({ children, repository }: AppStoreProviderProps) {
+  // Lazy initialization : createRepository() n'est évalué QU'UNE SEULE FOIS
+  // (premier appel du useState lazy initializer), pas à chaque render.
+  const [repositoryInstance] = useState<IRepository>(() => {
+    return repository ?? createRepository();
+  });
+  const repositoryRef = useRef<IRepository>(repositoryInstance);
+  repositoryRef.current = repositoryInstance;
+
+  const mountedRef = useRef<boolean>(false);
+
   const [active, setActive] = useState<NavItemKey>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [contacts, setContacts] = useState<Contact[]>(() => [...seedContacts]);
-  const [requests] = useState<Request[]>(() => [...seedRequests]);
-  const [missions] = useState<Mission[]>(() => [...seedMissions]);
-  const [exchanges] = useState<Exchange[]>(() => [...seedExchanges]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [exchanges, setExchanges] = useState<Exchange[]>([]);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -56,6 +89,50 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     return mql.matches;
   });
   const [now, setNow] = useState<Date>(() => clock.now());
+
+  const loadAll = useCallback(async () => {
+    const repo = repositoryRef.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const [loadedContacts, loadedRequests, loadedMissions, loadedExchanges] =
+        await Promise.all([
+          repo.loadContacts(),
+          repo.loadRequests(),
+          repo.loadMissions(),
+          repo.loadExchanges(),
+        ]);
+      if (!mountedRef.current) return;
+      setContacts(loadedContacts);
+      setRequests(loadedRequests);
+      setMissions(loadedMissions);
+      setExchanges(loadedExchanges);
+      setError(null);
+    } catch (e) {
+      if (!mountedRef.current) return;
+      const message =
+        e instanceof Error ? e.message : String(e);
+      setError(`Impossible de charger les données : ${message}`);
+      // Pas de publication d'état partiel : tableaux conservent ce qu'ils avaient
+      // mais on reset simplement loading=false pour laisser place à l'erreur.
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    loadAll();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadAll]);
+
+  const reload = useCallback(async () => {
+    await loadAll();
+  }, [loadAll]);
 
   const redRef = useRef<MediaQueryList | null>(null);
   useEffect(() => {
@@ -80,41 +157,43 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const addContact: AppStoreValue['data']['addContact'] = useCallback(
-    (input) => {
-      const newId = `c-new-${Date.now().toString(36)}`;
-      const created = clock.nowIso();
-      const c: Contact = {
-        id: newId,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        company: input.company,
-        email: input.email,
-        phone: input.phone,
-        notes: input.notes,
-        relationship: input.relationship,
-        createdAt: created,
-        lastActivityAt: created,
-        archived: false,
-        activeRequestId: undefined,
-        totalRequests: 0,
-        totalMissions: 0,
-        avatarSeed: `${newId}-${(Math.random() * 100000).toFixed(0)}`,
-      };
-      setContacts((prev) => [c, ...prev]);
-      return c;
+  const addContact: AppStoreDataSlice['addContact'] = useCallback(
+    async (input) => {
+      const repo = repositoryRef.current;
+      const created = await repo.createContact(input);
+      setContacts((prev) => {
+        if (prev.some((c) => c.id === created.id)) {
+          return prev;
+        }
+        return [created, ...prev];
+      });
+      return created;
     },
     []
+  );
+
+  const data: AppStoreDataSlice = useMemo(
+    () => ({
+      contacts,
+      requests,
+      missions,
+      exchanges,
+      loading,
+      error,
+      reload,
+      addContact,
+    }),
+    [contacts, requests, missions, exchanges, loading, error, reload, addContact]
   );
 
   const value: AppStoreValue = useMemo(
     () => ({
       nav: { active, setActive },
       search: { query: searchQuery, setQuery: setSearchQuery },
-      data: { contacts, requests, missions, exchanges, addContact },
+      data,
       ui: { reducedMotion, now },
     }),
-    [active, searchQuery, contacts, requests, missions, exchanges, addContact, reducedMotion, now]
+    [active, searchQuery, data, reducedMotion, now]
   );
 
   return (

@@ -35,6 +35,8 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
   const [notes, setNotes] = useState('');
   const [relationship, setRelationship] = useState<RelationshipType>('prospect');
   const [submitted, setSubmitted] = useState<null | { name: string }>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
@@ -50,6 +52,8 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
     setNotes('');
     setRelationship('prospect');
     setSubmitted(null);
+    setIsSubmitting(false);
+    setSubmitError(null);
   }, []);
 
   useEffect(() => {
@@ -130,20 +134,36 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
 
   if (!open) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim()) return;
-    const created = store.data.addContact({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      company: company.trim() || undefined,
-      email: email.trim() || undefined,
-      phone: phone.trim() || undefined,
-      notes: notes.trim() || undefined,
-      relationship,
-    });
-    setSubmitted({ name: `${created.firstName} ${created.lastName}` });
-    window.setTimeout(() => { onClose(); }, 900);
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitted(null);
+
+    try {
+      const created = await store.data.addContact({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        company: company.trim() || undefined,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        notes: notes.trim() || undefined,
+        relationship,
+      });
+      setSubmitted({ name: `${created.firstName} ${created.lastName}` });
+      window.setTimeout(() => { onClose(); }, 900);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Une erreur est survenue.';
+      setSubmitError(message);
+    } finally {
+      if (!submitted) {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   return (
@@ -175,7 +195,7 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
               Nouveau contact
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Ajouter une personne dans ton réseau (en mémoire).
+              Ajouter une personne dans ton réseau.
             </p>
           </div>
           <button
@@ -278,6 +298,15 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                 placeholder="Premières impressions, budget estimé, contexte…"
               />
             </Field>
+            {submitError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="rounded-xl border border-brand-coral/25 bg-brand-coral/10 px-3.5 py-2.5 text-xs text-brand-coral"
+              >
+                Erreur : {submitError}
+              </div>
+            )}
           </div>
 
           <footer className="px-5 py-4 border-t border-white/5 flex items-center justify-end gap-2 bg-bg-surface/40 backdrop-blur shrink-0">
@@ -285,14 +314,14 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
               type="button"
               onClick={onClose}
               className="btn-ghost !py-2 !px-3.5"
-              disabled={!!submitted}
+              disabled={!!submitted || isSubmitting}
             >
               Annuler
             </button>
             <button
               type="submit"
               className="btn-primary !py-2 !px-3.5 inline-flex items-center gap-2"
-              disabled={!firstName.trim() || !lastName.trim() || !!submitted}
+              disabled={!firstName.trim() || !lastName.trim() || !!submitted || isSubmitting}
             >
               {submitted ? (
                 <>
@@ -300,6 +329,13 @@ export function ContactCreateModal({ open, onClose }: ContactCreateModalProps) {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                   {submitted.name} ajouté
+                </>
+              ) : isSubmitting ? (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Création…
                 </>
               ) : (
                 <>
