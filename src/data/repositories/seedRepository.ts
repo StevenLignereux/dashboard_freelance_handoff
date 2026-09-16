@@ -6,8 +6,8 @@
  * afin d'éviter de muter les exports globaux et de polluer d'autres tests.
  */
 
-import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
+import type { Contact, Exchange, Mission, NextAction, Request } from '../../types';
+import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
 import {
   seedContacts,
   seedRequests,
@@ -178,6 +178,48 @@ export class SeedRepository implements IRepository {
     this.requests[idx] = updated;
     return updated;
   }
+
+  async createRequestAction(
+  input: CreateRequestActionInput
+): Promise<NextAction> {
+  const requestIndex = this.requests.findIndex(
+    (request) => request.id === input.requestId
+  );
+
+  if (requestIndex === -1) {
+    throw new Error(
+      `Cannot create request action: request id=${input.requestId} not found.`
+    );
+  }
+
+  const request = this.requests[requestIndex];
+
+  if (request.archived) {
+    throw new Error(
+      `Cannot create request action: request id=${input.requestId} is archived.`
+    );
+  }
+
+  if (request.nextAction) {
+    throw new Error(
+      `Cannot create request action: request id=${input.requestId} already has an open action id=${request.nextAction.id}.`
+    );
+  }
+
+  const action: NextAction = {
+    id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: input.type,
+    label: input.label,
+    dueDate: input.dueDate,
+  };
+
+  this.requests[requestIndex] = {
+    ...request,
+    nextAction: action,
+  };
+
+  return action;
+}
 
   archiveRequest(requestId: string): Promise<void> {
     const idx = this.requests.findIndex((r) => r.id === requestId);
