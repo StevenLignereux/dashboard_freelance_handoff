@@ -29,7 +29,9 @@ function RequestRow({ r, contactName, onOpenContact }: { r: Request; contactName
           <p className="text-sm text-slate-400 mt-1 truncate">{contactName}</p>
         </div>
         <div className="md:w-[45%] lg:w-[40%] shrink-0">
-          {action ? (
+          {r.archived ? (
+            <p className="text-xs text-slate-500">Demande archivée</p>
+          ) : action ? (
             <NextActionView action={action} variant="compact" />
           ) : (
             <p className="text-xs text-slate-500">Aucune action prévue</p>

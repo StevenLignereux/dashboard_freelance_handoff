@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Tests pour le Seed Repository
  */
@@ -357,11 +358,152 @@ describe('SeedRepository', () => {
       expect(updated.email).toBeUndefined();
       expect(updated.phone).toBeUndefined();
       expect(updated.notes).toBeUndefined();
-      // Champs non impactés conservés
       expect(updated.firstName).toBe(target.firstName);
       expect(updated.lastName).toBe(target.lastName);
       expect(updated.id).toBe(target.id);
       expect(updated.totalRequests).toBe(target.totalRequests);
+    });
+  });
+
+  describe('Request CRUD (Backend 3B.1)', () => {
+    it('1. createRequest crée status=nouveau / archived=false', async () => {
+      const repo = new SeedRepository();
+      const contacts = await repo.loadContacts();
+      const c = contacts[0]; expect(c).toBeTruthy();
+      const reqs = await repo.loadRequests();
+      for (const r of reqs.filter(x => x.contactId === c.id && !x.archived && x.status !== 'sans_suite')) await repo.archiveRequest(r.id);
+      const created = await repo.createRequest({ contactId: c.id, title: 'Nouvelle demande test' });
+      expect(created.status).toBe('nouveau');
+      expect(created.archived).toBe(false);
+      expect(created.contactId).toBe(c.id);
+    });
+
+    it('2. createRequest met à jour totalRequests du contact', async () => {
+      const repo = new SeedRepository();
+      const contacts = await repo.loadContacts();
+      const c = contacts[1] ?? contacts[0]; expect(c).toBeTruthy();
+      const reqs = await repo.loadRequests();
+      for (const r of reqs.filter(x => x.contactId === c.id && !x.archived && x.status !== 'sans_suite')) await repo.archiveRequest(r.id);
+      const reloadC = (await repo.loadContacts()).find(x => x.id === c.id)!;
+      const before = reloadC.totalRequests;
+      await repo.createRequest({ contactId: c.id, title: 'Autre demande' });
+      const after = (await repo.loadContacts()).find(x => x.id === c.id)!;
+      expect(after.totalRequests).toBe(before + 1);
+    });
+
+    it('3. createRequest définit activeRequestId', async () => {
+      const repo = new SeedRepository();
+      const contacts = await repo.loadContacts();
+      const c = contacts[2] ?? contacts[0]; expect(c).toBeTruthy();
+      const reqs = await repo.loadRequests();
+      for (const r of reqs.filter(x => x.contactId === c.id && !x.archived && x.status !== 'sans_suite')) await repo.archiveRequest(r.id);
+      const created = await repo.createRequest({ contactId: c.id, title: 'Demande active' });
+      const after = (await repo.loadContacts()).find(x => x.id === c.id)!;
+      expect(after.activeRequestId).toBe(created.id);
+    });
+
+    it('4. createRequest contact inconnu → erreur', async () => {
+      const repo = new SeedRepository();
+      await expect(repo.createRequest({ contactId: 'c-not-exists-xyz', title: 'X' })).rejects.toThrow(/contact id=c-not-exists-xyz not found/);
+    });
+
+    it('5. createRequest contact archivé → erreur', async () => {
+      const repo = new SeedRepository();
+      const contacts = await repo.loadContacts();
+      const active = contacts.find(c => !c.archived)!; expect(active).toBeTruthy();
+      await repo.archiveContact(active.id);
+      await expect(repo.createRequest({ contactId: active.id, title: 'X' })).rejects.toThrow(/is archived/);
+    });
+
+    it('6. createRequest avec demande active existante → erreur', async () => {
+      const repo = new SeedRepository();
+      const reqs = await repo.loadRequests();
+      const active = reqs.find(r => !r.archived && r.status !== 'sans_suite');
+      if (!active) {
+        const c = (await repo.loadContacts())[0];
+        await repo.createRequest({ contactId: c.id, title: 'Première' });
+      }
+      const reqs2 = await repo.loadRequests();
+      const act = reqs2.find(r => !r.archived && r.status !== 'sans_suite')!;
+      await expect(repo.createRequest({ contactId: act.contactId, title: 'Deuxième' })).rejects.toThrow(/already has an active request/);
+    });
+
+    it('7. updateRequest modifie titre', async () => {
+      const repo = new SeedRepository();
+      const reqs = await repo.loadRequests();
+      const r = reqs[0]; expect(r).toBeTruthy();
+      const updated = await repo.updateRequest(r.id, { title: 'Nouveau titre !!!' });
+      expect(updated.title).toBe('Nouveau titre !!!');
+      expect(updated.id).toBe(r.id);
+    });
+
+    it('8. updateRequest description null efface', async () => {
+      const repo = new SeedRepository();
+      const reqs = await repo.loadRequests();
+      const r = reqs[0]; expect(r).toBeTruthy();
+      const after = await repo.updateRequest(r.id, { description: null });
+      expect(after.description).toBeUndefined();
+    });
+
+    it('9. updateRequest préserve status/dates/contact/nextAction', async () => {
+      const repo = new SeedRepository();
+      const reqs = await repo.loadRequests();
+      const r = reqs[0]; expect(r).toBeTruthy();
+      const before = { ...r };
+      const updated = await repo.updateRequest(r.id, { title: 'Preserve test' });
+      expect(updated.status).toBe(before.status);
+      expect(updated.createdAt).toBe(before.createdAt);
+      expect(updated.lastActivityAt).toBe(before.lastActivityAt);
+      expect(updated.contactId).toBe(before.contactId);
+      expect(updated.archived).toBe(before.archived);
+      if (before.nextAction) expect(updated.nextAction?.id).toBe(before.nextAction.id);
+    });
+
+    it('10. updateRequest inconnu → erreur', async () => {
+      const repo = new SeedRepository();
+      await expect(repo.updateRequest('r-nope-xyz', { title: 'X' })).rejects.toThrow(/id=r-nope-xyz not found/);
+    });
+
+    it('11. archiveRequest met archived=true', async () => {
+      const repo = new SeedRepository();
+      const reqs = await repo.loadRequests();
+      const r = reqs.find(x => !x.archived) ?? reqs[0]; expect(r).toBeTruthy();
+      await repo.archiveRequest(r.id);
+      const again = await repo.loadRequests();
+      expect(again.find(x => x.id === r.id)!.archived).toBe(true);
+    });
+
+    it('12. archiveRequest clear activeRequestId', async () => {
+      const repo = new SeedRepository();
+      const contacts = await repo.loadContacts();
+      const avec = contacts.find(c => c.activeRequestId);
+      if (avec) {
+        await repo.archiveRequest(avec.activeRequestId!);
+        const after = (await repo.loadContacts()).find(x => x.id === avec.id)!;
+        expect(after.activeRequestId).toBeUndefined();
+      } else {
+        const c = contacts.find(c => !c.archived)!;
+        const created = await repo.createRequest({ contactId: c.id, title: 'X' });
+        await repo.archiveRequest(created.id);
+        const after = (await repo.loadContacts()).find(x => x.id === c.id)!;
+        expect(after.activeRequestId).toBeUndefined();
+      }
+    });
+
+    it('13. archive ne décrémente pas totalRequests', async () => {
+      const repo = new SeedRepository();
+      const reqs = await repo.loadRequests();
+      const r = reqs.find(x => !x.archived) ?? reqs[0]; expect(r).toBeTruthy();
+      const beforeC = (await repo.loadContacts()).find(x => x.id === r.contactId)!;
+      const before = beforeC.totalRequests;
+      await repo.archiveRequest(r.id);
+      const after = (await repo.loadContacts()).find(x => x.id === r.contactId)!;
+      expect(after.totalRequests).toBe(before);
+    });
+
+    it('14. archive inconnue → erreur', async () => {
+      const repo = new SeedRepository();
+      await expect(repo.archiveRequest('r-unknown-xyz')).rejects.toThrow(/id=r-unknown-xyz not found/);
     });
   });
 });

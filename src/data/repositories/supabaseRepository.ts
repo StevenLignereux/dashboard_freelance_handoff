@@ -9,7 +9,7 @@
 
 import { supabase } from '../../lib/supabase/client';
 import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, IRepository, UpdateContactInput } from './interface';
+import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
 import {
   mapContact,
   mapRequest,
@@ -58,7 +58,7 @@ export class SupabaseRepository implements IRepository {
     } = await sb.auth.getUser();
     if (error || !user) {
       throw new Error(
-        'Cannot create contact: no authenticated Supabase user. Sign in before writing data.'
+        'Supabase write requires an authenticated user.'
       );
     }
     return user.id;
@@ -333,6 +333,110 @@ export class SupabaseRepository implements IRepository {
     }
     if (!data) {
       throw new Error(`Failed to archive contact: no row updated for id=${contactId}`);
+    }
+  }
+
+  async createRequest(input: CreateRequestInput): Promise<Request> {
+    this.ensureSupabaseConfigured();
+    const userId = await this.getCurrentUserId();
+    const now = new Date().toISOString();
+
+    const obj = {
+      user_id: userId,
+      contact_id: input.contactId,
+      title: input.title,
+      description: input.description ?? null,
+      status: 'nouveau',
+      is_active: true,
+      archived: false,
+      created_at: now,
+      last_activity_at: now,
+    };
+
+    const sb = this.getSupabase();
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const { data, error } = await (sb.from('requests') as any)
+      .insert(obj)
+      .select()
+      .single();
+    /* eslint-enable */
+
+    if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      throw new Error(`Failed to create request for contact id=${input.contactId}: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error(`Failed to create request for contact id=${input.contactId}: no row returned`);
+    }
+    return mapRequest(data as DbRequest, null);
+  }
+
+  async updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request> {
+    this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
+
+    const patch: Record<string, unknown> = {};
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.description !== undefined) patch.description = input.description ?? null;
+
+    delete patch.user_id;
+    delete patch.contact_id;
+    delete patch.status;
+    delete patch.is_active;
+    delete patch.archived;
+    delete patch.created_at;
+    delete patch.last_activity_at;
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const { data: updatedData, error: updateError } = await (sb.from('requests') as any)
+      .update(patch)
+      .eq('id', requestId)
+      .select()
+      .single();
+    /* eslint-enable */
+
+    if (updateError) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      throw new Error(`Failed to update request id=${requestId}: ${updateError.message}`);
+    }
+    if (!updatedData) {
+      throw new Error(`Failed to update request: no row returned for id=${requestId}`);
+    }
+
+    const { data: actions, error: actionError } = await sb
+      .from('request_actions')
+      .select('*')
+      .eq('request_id', requestId)
+      .is('completed_at', null);
+
+    if (actionError) {
+      throw new Error(`Failed to load open action for request id=${requestId}: ${actionError.message}`);
+    }
+
+    const dbActions = actions as DbRequestAction[];
+    const openAction = dbActions[0] ?? null;
+
+    return mapRequest(updatedData as DbRequest, openAction);
+  }
+
+  async archiveRequest(requestId: string): Promise<void> {
+    this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const { data, error } = await (sb.from('requests') as any)
+      .update({ archived: true, is_active: false })
+      .eq('id', requestId)
+      .select('id')
+      .single();
+    /* eslint-enable */
+
+    if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      throw new Error(`Failed to archive request id=${requestId}: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error(`Failed to archive request: no row updated for id=${requestId}`);
     }
   }
 }

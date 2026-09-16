@@ -439,7 +439,7 @@ describe('SupabaseRepository', () => {
       };
 
       await expect(sb.createContact(payload)).rejects.toThrow(
-        /no authenticated Supabase user/i
+        /Supabase write requires an authenticated user/
       );
     });
 
@@ -888,16 +888,699 @@ describe('SupabaseRepository', () => {
       expect(capturedPatches).toHaveLength(1);
       const p = capturedPatches[0];
       expect(p).toBeDefined();
-      // Vérifie l'absence des champs interdits
       expect(p).not.toHaveProperty('user_id');
       expect(p).not.toHaveProperty('archived');
       expect(p).not.toHaveProperty('created_at');
       expect(p).not.toHaveProperty('last_activity_at');
-      // Nulls bien transmis
       expect(p.company).toBeNull();
       expect(p.email).toBeNull();
       expect(p.phone).toBeNull();
       expect(p.notes).toBeNull();
+    });
+  });
+
+  describe('createRequest (tests 15-20)', () => {
+    it('15. createRequest utilise authenticated user (calls auth.getUser)', async () => {
+      const createdDbRequest = {
+        id: 'r-created',
+        contact_id: 'c-1',
+        title: 'Nouv dem',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01T00:00:00Z',
+        last_activity_at: '2024-01-01T00:00:00Z',
+        is_active: true,
+        archived: false,
+        user_id: 'user-auth-xyz',
+      };
+
+      const mockInsert = vi.fn().mockReturnThis();
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: createdDbRequest,
+        error: null,
+      });
+
+      let getUserCalled = false;
+      const sb = repository as unknown as {
+        getSupabase: () => {
+          auth: {
+            getUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          };
+          from: (_t: string) => {
+            insert: (_row: unknown) => unknown;
+          };
+        };
+        createRequest: (input: object) => Promise<unknown>;
+      };
+      sb.getSupabase = () => ({
+        auth: {
+          getUser: () => {
+            getUserCalled = true;
+            return Promise.resolve({
+              data: { user: { id: 'user-auth-xyz' } },
+              error: null,
+            });
+          },
+        },
+        from: () => ({
+          insert: (row: unknown) => {
+            mockInsert(row);
+            return { select: mockSelect, single: mockSingle };
+          },
+        }),
+      });
+
+      const created = await sb.createRequest({ contactId: 'c-1', title: 'Nouv dem' });
+
+      expect(getUserCalled).toBe(true);
+      expect(mockInsert).toHaveBeenCalled();
+      expect((created as { id: string }).id).toBe('r-created');
+    });
+
+    it('16. INSERT contient contact_id correct', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const createdDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-contact-42',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-01',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+
+      const sb = repository as unknown as {
+        getSupabase: () => {
+          auth: {
+            getUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          };
+          from: (_t: string) => {
+            insert: (row: Record<string, unknown>) => unknown;
+          };
+        };
+        createRequest: (input: object) => Promise<unknown>;
+      };
+      sb.getSupabase = () => ({
+        auth: {
+          getUser: () => Promise.resolve({ data: { user: { id: 'u-1' } }, error: null }),
+        },
+        from: () => ({
+          insert: (row: Record<string, unknown>) => {
+            capturedPatches.push({ ...row });
+            return {
+              select: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: createdDbRequest, error: null }),
+            };
+          },
+        }),
+      });
+
+      await sb.createRequest({ contactId: 'c-contact-42', title: 'X' });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]?.contact_id).toBe('c-contact-42');
+    });
+
+    it('17. INSERT contient status=nouveau', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const createdDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-01',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+
+      const sb = repository as unknown as {
+        getSupabase: () => {
+          auth: {
+            getUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          };
+          from: (_t: string) => {
+            insert: (row: Record<string, unknown>) => unknown;
+          };
+        };
+        createRequest: (input: object) => Promise<unknown>;
+      };
+      sb.getSupabase = () => ({
+        auth: {
+          getUser: () => Promise.resolve({ data: { user: { id: 'u-1' } }, error: null }),
+        },
+        from: () => ({
+          insert: (row: Record<string, unknown>) => {
+            capturedPatches.push({ ...row });
+            return {
+              select: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: createdDbRequest, error: null }),
+            };
+          },
+        }),
+      });
+
+      await sb.createRequest({ contactId: 'c-1', title: 'X' });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]?.status).toBe('nouveau');
+    });
+
+    it('18. INSERT contient is_active=true', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const createdDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-01',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+
+      const sb = repository as unknown as {
+        getSupabase: () => {
+          auth: {
+            getUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          };
+          from: (_t: string) => {
+            insert: (row: Record<string, unknown>) => unknown;
+          };
+        };
+        createRequest: (input: object) => Promise<unknown>;
+      };
+      sb.getSupabase = () => ({
+        auth: {
+          getUser: () => Promise.resolve({ data: { user: { id: 'u-1' } }, error: null }),
+        },
+        from: () => ({
+          insert: (row: Record<string, unknown>) => {
+            capturedPatches.push({ ...row });
+            return {
+              select: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: createdDbRequest, error: null }),
+            };
+          },
+        }),
+      });
+
+      await sb.createRequest({ contactId: 'c-1', title: 'X' });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]?.is_active).toBe(true);
+    });
+
+    it('19. aucun user_id accepté depuis input', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const createdDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-01',
+        is_active: true,
+        archived: false,
+        user_id: 'u-from-auth',
+      };
+
+      const sb = repository as unknown as {
+        getSupabase: () => {
+          auth: {
+            getUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          };
+          from: (_t: string) => {
+            insert: (row: Record<string, unknown>) => unknown;
+          };
+        };
+        createRequest: (input: Record<string, unknown>) => Promise<unknown>;
+      };
+      sb.getSupabase = () => ({
+        auth: {
+          getUser: () => Promise.resolve({ data: { user: { id: 'u-from-auth' } }, error: null }),
+        },
+        from: () => ({
+          insert: (row: Record<string, unknown>) => {
+            capturedPatches.push({ ...row });
+            return {
+              select: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: createdDbRequest, error: null }),
+            };
+          },
+        }),
+      });
+
+      await sb.createRequest({
+        contactId: 'c-1',
+        title: 'X',
+        user_id: 'u-from-input-evil',
+      });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]?.user_id).not.toBe('u-from-input-evil');
+      expect(capturedPatches[0]?.user_id).toBe('u-from-auth');
+    });
+
+    it('20. erreur insert propagée', async () => {
+      const mockError = { message: 'Insert request failed' };
+      const sb = repository as unknown as {
+        getSupabase: () => {
+          auth: {
+            getUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+          };
+          from: (_t: string) => {
+            insert: (_row: unknown) => { select: unknown; single: unknown };
+          };
+        };
+        createRequest: (input: object) => Promise<unknown>;
+      };
+      sb.getSupabase = () => ({
+        auth: {
+          getUser: () => Promise.resolve({ data: { user: { id: 'u-1' } }, error: null }),
+        },
+        from: () => ({
+          insert: () => ({
+            select: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: null, error: mockError }),
+          }),
+        }),
+      });
+
+      await expect(sb.createRequest({ contactId: 'c-1', title: 'X' })).rejects.toThrow(
+        /Failed to create request for contact id=c-1: Insert request failed/
+      );
+    });
+  });
+
+  describe('updateRequest (tests 21-27)', () => {
+    it('21. update patch ne contient que title/description', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'Titre nouv',
+        description: null,
+        status: 'en_attente',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatches.push({ ...patch });
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: (_k2: string, _v2: unknown) =>
+                  Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await repository.updateRequest('r-1', {
+        title: 'Titre nouv',
+        description: 'Desc',
+      });
+
+      expect(capturedPatches).toHaveLength(1);
+      const patch = capturedPatches[0];
+      expect(patch.title).toBe('Titre nouv');
+      expect(patch.description).toBe('Desc');
+      expect(patch).not.toHaveProperty('user_id');
+      expect(patch).not.toHaveProperty('contact_id');
+      expect(patch).not.toHaveProperty('status');
+      expect(patch).not.toHaveProperty('is_active');
+      expect(patch).not.toHaveProperty('archived');
+      expect(patch).not.toHaveProperty('created_at');
+      expect(patch).not.toHaveProperty('last_activity_at');
+    });
+
+    it('22. description null → NULL in patch', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatches.push({ ...patch });
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: (_k2: string, _v2: unknown) =>
+                  Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await repository.updateRequest('r-1', { description: null });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]?.description).toBeNull();
+    });
+
+    it('23. update ne modifie pas status (not sent in patch)', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'en_attente',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatches.push({ ...patch });
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: (_k2: string, _v2: unknown) =>
+                  Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await repository.updateRequest('r-1', { title: 'X' });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]).not.toHaveProperty('status');
+    });
+
+    it('24. update ne modifie pas is_active', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatches.push({ ...patch });
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: (_k2: string, _v2: unknown) =>
+                  Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await repository.updateRequest('r-1', { title: 'X' });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]).not.toHaveProperty('is_active');
+    });
+
+    it('25. update ne modifie pas last_activity_at', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatches.push({ ...patch });
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: (_k2: string, _v2: unknown) =>
+                  Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await repository.updateRequest('r-1', { title: 'X' });
+
+      expect(capturedPatches).toHaveLength(1);
+      expect(capturedPatches[0]).not.toHaveProperty('last_activity_at');
+    });
+
+    it('26. update conserve nextAction ouverte existante', async () => {
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockActions = [
+        {
+          id: 'na-open-1',
+          request_id: 'r-1',
+          type: 'relance',
+          label: 'Relancer',
+          due_at: '2024-01-10T10:00:00Z',
+          completed_at: null,
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+          user_id: 'u-1',
+        },
+      ];
+
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockActionsIs = vi.fn().mockResolvedValue({ data: mockActions, error: null });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: mockActionsIs,
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const updated = await repository.updateRequest('r-1', { title: 'X' });
+
+      expect(updated.nextAction).toBeDefined();
+      expect(updated.nextAction?.id).toBe('na-open-1');
+      expect(mockActionsIs).toHaveBeenCalledWith('completed_at', null);
+    });
+
+    it('27. erreur action secondaire propagée', async () => {
+      const updatedDbRequest = {
+        id: 'r-1',
+        contact_id: 'c-1',
+        title: 'X',
+        description: null,
+        status: 'nouveau',
+        created_at: '2024-01-01',
+        last_activity_at: '2024-01-02',
+        is_active: true,
+        archived: false,
+        user_id: 'u-1',
+      };
+      const mockActionsError = { message: 'request_actions DB down' };
+
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockActionsIs = vi.fn().mockResolvedValue({ data: null, error: mockActionsError });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') {
+          return {
+            select: (_cols?: string) => ({
+              eq: (_k: string, _v: unknown) => ({
+                is: mockActionsIs,
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.updateRequest('r-1', { title: 'X' })).rejects.toThrow(
+        /Failed to load open action for request id=r-1: request_actions DB down/
+      );
+    });
+  });
+
+  describe('archiveRequest (tests 28-31)', () => {
+    it('28. archive UPDATE archived=true + is_active=false', async () => {
+      let capturedPatch: Record<string, unknown> | null = null;
+
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'r-99' }, error: null });
+      const mockSelect = vi.fn().mockImplementation((arg: unknown) => {
+        expect(arg).toBe('id');
+        return { single: mockSingle };
+      });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatch = { ...patch };
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'requests') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      await repository.archiveRequest('r-99');
+
+      expect(capturedPatch).not.toBeNull();
+      expect(capturedPatch).toEqual({ archived: true, is_active: false });
+    });
+
+    it('29. archive filtre id correct', async () => {
+      let capturedEq: [string, unknown] | null = null;
+
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'r-filter-me' }, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockImplementation((key: string, val: unknown) => {
+        capturedEq = [key, val];
+        return { select: mockSelect };
+      });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'requests') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      await repository.archiveRequest('r-filter-me');
+
+      expect(capturedEq).not.toBeNull();
+      expect(capturedEq?.[0]).toBe('id');
+      expect(capturedEq?.[1]).toBe('r-filter-me');
+    });
+
+    it('30. archive zéro ligne → erreur', async () => {
+      const mockSingle = vi.fn().mockReturnValue({ data: null, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'requests') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      try {
+        await repository.archiveRequest('r-absent-777');
+        expect.fail('archiveRequest aurait dû rejeter');
+      } catch (err) {
+        expect(err).toBeInstanceOf(Error);
+        expect((err as Error).message).toMatch(
+          /no row updated for id=r-absent-777/
+        );
+      }
+      expect(mockSelect).toHaveBeenCalledWith('id');
+    });
+
+    it('31. archive erreur Supabase propagée', async () => {
+      const mockError = { message: 'archive req failed' };
+      const mockSingle = vi.fn().mockResolvedValue({ data: null, error: mockError });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'requests') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.archiveRequest('r-err')).rejects.toThrow(
+        /Failed to archive request id=r-err: archive req failed/
+      );
     });
   });
 });
