@@ -106,7 +106,6 @@ describe('SeedRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const created = await repository.createContact(newContact);
@@ -115,6 +114,15 @@ describe('SeedRepository', () => {
       expect(created.id).toMatch(/^c-[a-z0-9-]+$/);
       expect(created.firstName).toBe('Marie');
       expect(created.lastName).toBe('Curie');
+    });
+
+    it('initialise archived = false même si le contrat CreateContactInput ne le demande pas', async () => {
+      const created = await repository.createContact({
+        firstName: 'Nouveau',
+        lastName: 'SansArchived',
+        relationship: 'prospect',
+      });
+      expect(created.archived).toBe(false);
     });
 
     it('génère les champs dérivés', async () => {
@@ -126,7 +134,6 @@ describe('SeedRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const created = await repository.createContact(newContact);
@@ -146,7 +153,6 @@ describe('SeedRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const created = await repository.createContact(newContact);
@@ -157,7 +163,6 @@ describe('SeedRepository', () => {
     });
 
     it('fonctionne sans variables Supabase', async () => {
-      // Ce test vérifie que le seed repository fonctionne sans dépendance Supabase
       const newContact = {
         firstName: 'Marie',
         lastName: 'Curie',
@@ -166,7 +171,6 @@ describe('SeedRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const created = await repository.createContact(newContact);
@@ -187,7 +191,6 @@ describe('SeedRepository', () => {
         phone: undefined,
         notes: undefined,
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const created = await repository.createContact(newContact);
@@ -215,7 +218,6 @@ describe('SeedRepository', () => {
         firstName: 'RepoA',
         lastName: 'Only',
         relationship: 'prospect',
-        archived: false,
       });
 
       const aAfter = await repoA.loadContacts();

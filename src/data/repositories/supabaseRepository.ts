@@ -1,11 +1,15 @@
 /**
  * Supabase Repository - Implémentation repository utilisant Supabase.
  * Utilise uniquement le client Supabase et les mappers.
+ *
+ * Règles :
+ *  - Aucune erreur Supabase n'est ignorée sur les requêtes secondaires.
+ *  - Une mission sans request correspondante est une erreur explicite.
  */
 
 import { supabase } from '../../lib/supabase/client';
 import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { IRepository } from './interface';
+import type { CreateContactInput, IRepository } from './interface';
 import {
   mapContact,
   mapRequest,
@@ -62,8 +66,9 @@ export class SupabaseRepository implements IRepository {
 
   async loadContacts(): Promise<Contact[]> {
     this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
 
-    const { data: contacts, error } = await this.getSupabase()
+    const { data: contacts, error } = await sb
       .from('contacts')
       .select('*')
       .order('last_activity_at', { ascending: false });
@@ -72,17 +77,29 @@ export class SupabaseRepository implements IRepository {
       throw new Error(`Failed to load contacts: ${error.message}`);
     }
 
-    const { data: requests } = await this.getSupabase()
+    const { data: requests, error: requestsError } = await sb
       .from('requests')
       .select('*');
 
-    const { data: missions } = await this.getSupabase()
+    if (requestsError) {
+      throw new Error(
+        `Failed to load requests (pour calcul des dérivés contact): ${requestsError.message}`
+      );
+    }
+
+    const { data: missions, error: missionsError } = await sb
       .from('missions')
       .select('*');
 
+    if (missionsError) {
+      throw new Error(
+        `Failed to load missions (pour calcul des dérivés contact): ${missionsError.message}`
+      );
+    }
+
     const dbContacts = contacts as DbContact[];
-    const dbRequests = (requests ?? []) as DbRequest[];
-    const dbMissions = (missions ?? []) as DbMission[];
+    const dbRequests = requests as DbRequest[];
+    const dbMissions = missions as DbMission[];
 
     return dbContacts.map((dbContact) => {
       const relatedRequests = dbRequests.filter(
@@ -97,8 +114,9 @@ export class SupabaseRepository implements IRepository {
 
   async loadRequests(): Promise<Request[]> {
     this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
 
-    const { data: requests, error } = await this.getSupabase()
+    const { data: requests, error } = await sb
       .from('requests')
       .select('*')
       .order('last_activity_at', { ascending: false });
@@ -107,13 +125,19 @@ export class SupabaseRepository implements IRepository {
       throw new Error(`Failed to load requests: ${error.message}`);
     }
 
-    const { data: actions } = await this.getSupabase()
+    const { data: actions, error: actionsError } = await sb
       .from('request_actions')
       .select('*')
       .is('completed_at', null);
 
+    if (actionsError) {
+      throw new Error(
+        `Failed to load request_actions (pour calcul nextAction): ${actionsError.message}`
+      );
+    }
+
     const dbRequests = requests as DbRequest[];
-    const dbActions = (actions ?? []) as DbRequestAction[];
+    const dbActions = actions as DbRequestAction[];
 
     const actionsByRequestId = new Map<string, DbRequestAction>();
     for (const action of dbActions) {
@@ -128,8 +152,9 @@ export class SupabaseRepository implements IRepository {
 
   async loadMissions(): Promise<Mission[]> {
     this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
 
-    const { data: missions, error } = await this.getSupabase()
+    const { data: missions, error } = await sb
       .from('missions')
       .select('*')
       .order('created_at', { ascending: false });
@@ -138,12 +163,18 @@ export class SupabaseRepository implements IRepository {
       throw new Error(`Failed to load missions: ${error.message}`);
     }
 
-    const { data: requests } = await this.getSupabase()
+    const { data: requests, error: requestsError } = await sb
       .from('requests')
       .select('*');
 
+    if (requestsError) {
+      throw new Error(
+        `Failed to load requests (pour résolution mission.contactId): ${requestsError.message}`
+      );
+    }
+
     const dbMissions = missions as DbMission[];
-    const dbRequests = (requests ?? []) as DbRequest[];
+    const dbRequests = requests as DbRequest[];
 
     const contactIdByRequestId = new Map<string, string>();
     for (const request of dbRequests) {
@@ -151,15 +182,21 @@ export class SupabaseRepository implements IRepository {
     }
 
     return dbMissions.map((dbMission) => {
-      const contactId = contactIdByRequestId.get(dbMission.request_id) ?? '';
+      const contactId = contactIdByRequestId.get(dbMission.request_id);
+      if (!contactId) {
+        throw new Error(
+          `Mission ${dbMission.id} réfère request ${dbMission.request_id} introuvable: impossible de résoudre mission.contactId`
+        );
+      }
       return mapMission(dbMission, contactId);
     });
   }
 
   async loadExchanges(): Promise<Exchange[]> {
     this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
 
-    const { data: exchanges, error } = await this.getSupabase()
+    const { data: exchanges, error } = await sb
       .from('exchanges')
       .select('*')
       .order('occurred_at', { ascending: false });
@@ -172,33 +209,23 @@ export class SupabaseRepository implements IRepository {
     return dbExchanges.map(mapExchange);
   }
 
-  async createContact(
-    contact: Omit<
-      Contact,
-      | 'id'
-      | 'createdAt'
-      | 'lastActivityAt'
-      | 'totalRequests'
-      | 'totalMissions'
-      | 'avatarSeed'
-    >
-  ): Promise<Contact> {
+  async createContact(input: CreateContactInput): Promise<Contact> {
     this.ensureSupabaseConfigured();
 
     const userId = await this.getCurrentUserId();
     const now = new Date().toISOString();
 
     const dbContact = {
-      first_name: contact.firstName,
-      last_name: contact.lastName,
-      company: contact.company ?? null,
-      email: contact.email ?? null,
-      phone: contact.phone ?? null,
-      notes: contact.notes ?? null,
-      relationship: RELATIONSHIP_TYPE_REVERSE_MAP[contact.relationship],
+      first_name: input.firstName,
+      last_name: input.lastName,
+      company: input.company ?? null,
+      email: input.email ?? null,
+      phone: input.phone ?? null,
+      notes: input.notes ?? null,
+      relationship: RELATIONSHIP_TYPE_REVERSE_MAP[input.relationship],
       created_at: now,
       last_activity_at: now,
-      archived: contact.archived,
+      archived: false,
       user_id: userId,
     };
 

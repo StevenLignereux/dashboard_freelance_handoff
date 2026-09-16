@@ -7,7 +7,7 @@
  */
 
 import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { IRepository } from './interface';
+import type { CreateContactInput, IRepository } from './interface';
 import {
   seedContacts,
   seedRequests,
@@ -45,22 +45,19 @@ export class SeedRepository implements IRepository {
     return Promise.resolve([...this.exchanges]);
   }
 
-  async createContact(
-    contact: Omit<
-      Contact,
-      | 'id'
-      | 'createdAt'
-      | 'lastActivityAt'
-      | 'totalRequests'
-      | 'totalMissions'
-      | 'avatarSeed'
-    >
-  ): Promise<Contact> {
+  async createContact(input: CreateContactInput): Promise<Contact> {
     const now = new Date().toISOString();
     const id = `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const newContact: Contact = {
-      ...contact,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      company: input.company,
+      email: input.email,
+      phone: input.phone,
+      notes: input.notes,
+      relationship: input.relationship,
+      archived: false,
       id,
       createdAt: now,
       lastActivityAt: now,

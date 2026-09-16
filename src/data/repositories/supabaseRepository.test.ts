@@ -123,6 +123,62 @@ describe('SupabaseRepository', () => {
 
       await expect(repository.loadContacts()).rejects.toThrow('Failed to load contacts');
     });
+
+    it('propage une erreur sur la requête secondaire requests (pas de résultat partiel silencieux)', async () => {
+      const mockContactsResponse = { data: [{ id: 'c-1' }], error: null };
+      const mockRequestsError = { message: 'requests error' };
+      const mockMissionsResponse = { data: [], error: null };
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'contacts') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            order: () => Promise.resolve(mockContactsResponse),
+          };
+        }
+        if (table === 'requests') {
+          return {
+            select: () => Promise.resolve({ data: null, error: mockRequestsError }),
+          };
+        }
+        if (table === 'missions') {
+          return { select: () => Promise.resolve(mockMissionsResponse) };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.loadContacts()).rejects.toThrow(
+        /Failed to load requests .* dérivés contact/
+      );
+    });
+
+    it('propage une erreur sur la requête secondaire missions (pas de résultat partiel silencieux)', async () => {
+      const mockContactsResponse = { data: [{ id: 'c-1' }], error: null };
+      const mockRequestsResponse = { data: [], error: null };
+      const mockMissionsError = { message: 'missions error' };
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'contacts') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            order: () => Promise.resolve(mockContactsResponse),
+          };
+        }
+        if (table === 'requests') {
+          return { select: () => Promise.resolve(mockRequestsResponse) };
+        }
+        if (table === 'missions') {
+          return {
+            select: () => Promise.resolve({ data: null, error: mockMissionsError }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.loadContacts()).rejects.toThrow(
+        /Failed to load missions .* dérivés contact/
+      );
+    });
   });
 
   describe('loadRequests', () => {
@@ -180,6 +236,31 @@ describe('SupabaseRepository', () => {
       expect(requests).toHaveLength(1);
       expect(requests[0].nextAction).toBeDefined();
       expect(requests[0].nextAction?.id).toBe('na-1');
+    });
+
+    it('propage une erreur request_actions (requête secondaire)', async () => {
+      const mockRequestsResponse = { data: [{ id: 'r-1' }], error: null };
+      const mockActionsError = { message: 'actions DB error' };
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            order: () => Promise.resolve(mockRequestsResponse),
+          };
+        }
+        if (table === 'request_actions') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            is: vi.fn().mockResolvedValue({ data: null, error: mockActionsError }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.loadRequests()).rejects.toThrow(
+        /Failed to load request_actions .* nextAction/
+      );
     });
   });
 
@@ -239,6 +320,67 @@ describe('SupabaseRepository', () => {
       expect(missions).toHaveLength(1);
       expect(missions[0].contactId).toBe('c-derived');
     });
+
+    it('propage une erreur requests (requête secondaire pour résolution contactId)', async () => {
+      const mockMissionsResponse = { data: [{ id: 'm-1', request_id: 'r-1' }], error: null };
+      const mockRequestsError = { message: 'requests error' };
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'missions') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            order: () => Promise.resolve(mockMissionsResponse),
+          };
+        }
+        if (table === 'requests') {
+          return {
+            select: () => Promise.resolve({ data: null, error: mockRequestsError }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.loadMissions()).rejects.toThrow(
+        /Failed to load requests .* résolution mission\.contactId/
+      );
+    });
+
+    it('lève une erreur explicite si une mission réfère une request introuvable (plus contactId === "")', async () => {
+      const mockMissions = [
+        {
+          id: 'm-orphan',
+          request_id: 'r-missing',
+          title: 'Mission orpheline',
+          status: 'en_cours',
+          start_date: null,
+          end_date: null,
+          progress: null,
+          notes: null,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-02T00:00:00Z',
+          user_id: 'user-1',
+        },
+      ];
+      const mockMissionsResponse = { data: mockMissions, error: null };
+      const mockRequestsResponse = { data: [], error: null };
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'missions') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            order: () => Promise.resolve(mockMissionsResponse),
+          };
+        }
+        if (table === 'requests') {
+          return { select: () => Promise.resolve(mockRequestsResponse) };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.loadMissions()).rejects.toThrow(
+        /Mission m-orphan.*request r-missing.*introuvable.*contactId/
+      );
+    });
   });
 
   describe('loadExchanges', () => {
@@ -294,7 +436,6 @@ describe('SupabaseRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       await expect(sb.createContact(payload)).rejects.toThrow(
@@ -311,7 +452,6 @@ describe('SupabaseRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const createdDbContact = {
@@ -384,7 +524,6 @@ describe('SupabaseRepository', () => {
         phone: '+33123456789',
         notes: 'Scientifique',
         relationship: 'prospect' as const,
-        archived: false,
       };
 
       const mockError = { message: 'Insert failed' };
