@@ -179,6 +179,7 @@ export class SeedRepository implements IRepository {
     return updated;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async createRequestAction(
   input: CreateRequestActionInput
 ): Promise<NextAction> {
