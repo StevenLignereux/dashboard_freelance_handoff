@@ -8,13 +8,14 @@
  */
 
 import { supabase } from '../../lib/supabase/client';
-import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
+import type { Contact, Exchange, Mission, Request, NextAction, NextActionType } from '../../types';
+import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
 import {
   mapContact,
   mapRequest,
   mapMission,
   mapExchange,
+  mapNextAction,
 } from '../mappers';
 import type {
   DbContact,
@@ -23,6 +24,7 @@ import type {
   DbExchange,
   DbRequestAction,
   DbRelationshipType,
+  DbRequestActionType,
 } from '../dbTypes';
 
 const RELATIONSHIP_TYPE_REVERSE_MAP: Record<string, DbRelationshipType> = {
@@ -30,6 +32,17 @@ const RELATIONSHIP_TYPE_REVERSE_MAP: Record<string, DbRelationshipType> = {
   client: 'client',
   client_recurrent: 'client_recurrent',
   ancien_client: 'ancien_client',
+};
+
+const ACTION_TYPE_REVERSE_MAP: Record<NextActionType, DbRequestActionType> = {
+  relance: 'relance',
+  proposition: 'proposition',
+  appel: 'appel',
+  devis: 'devis',
+  documents: 'documents',
+  precision: 'precision',
+  echange: 'echange',
+  autre: 'autre',
 };
 
 export class SupabaseRepository implements IRepository {
@@ -417,6 +430,57 @@ export class SupabaseRepository implements IRepository {
     const openAction = dbActions[0] ?? null;
 
     return mapRequest(updatedData as DbRequest, openAction);
+  }
+
+  async createRequestAction(
+    input: CreateRequestActionInput,
+  ): Promise<NextAction> {
+    this.ensureSupabaseConfigured();
+
+    const sb = this.getSupabase();
+    const userId = await this.getCurrentUserId();
+
+    const { data: requestData, error: requestError } = await sb
+      .from('requests')
+      .select('id, archived')
+      .eq('id', input.requestId)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new Error(`Failed to load request id=${input.requestId}: ${requestError.message}`);
+    }
+    if (!requestData) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} not found.`);
+    }
+    if (requestData.archived) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} is archived.`);
+    }
+
+    const dbAction = {
+      user_id: userId,
+      request_id: input.requestId,
+      type: ACTION_TYPE_REVERSE_MAP[input.type],
+      label: input.label,
+      due_at: input.dueDate,
+      completed_at: null,
+    };
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const { data, error } = await (sb.from('request_actions') as any)
+      .insert(dbAction)
+      .select()
+      .single();
+    /* eslint-enable */
+
+    if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      throw new Error(`Failed to create request action for request id=${input.requestId}: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error(`Failed to create request action for request id=${input.requestId}: no row returned`);
+    }
+    return mapNextAction(data as DbRequestAction);
+
   }
 
   async archiveRequest(requestId: string): Promise<void> {
