@@ -3,7 +3,7 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { useRef } from 'react';
 import type { Contact, Exchange, Mission, Request } from '../types';
-import type { CreateContactInput, IRepository } from '../data/repositories/interface';
+import type { CreateContactInput, IRepository, UpdateContactInput } from '../data/repositories/interface';
 import { AppStoreProvider, useAppStore, type AppStoreData } from './AppStore';
 import * as factoryModule from '../data/repositories/factory';
 
@@ -13,6 +13,8 @@ type RepositorySpy = IRepository & {
   loadMissionsSpy: Mock<() => Promise<Mission[]>>;
   loadExchangesSpy: Mock<() => Promise<Exchange[]>>;
   createContactSpy: Mock<(input: CreateContactInput) => Promise<Contact>>;
+  updateContactSpy: Mock<(contactId: string, input: UpdateContactInput) => Promise<Contact>>;
+  archiveContactSpy: Mock<(contactId: string) => Promise<void>>;
 };
 
 /**
@@ -45,17 +47,35 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
         (() => Promise.reject(new Error('not implemented')))
     );
 
+  const updateContactSpy = vi
+    .fn<(contactId: string, input: UpdateContactInput) => Promise<Contact>>()
+    .mockImplementation(
+      overrides?.updateContact ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
+  const archiveContactSpy = vi
+    .fn<(contactId: string) => Promise<void>>()
+    .mockImplementation(
+      overrides?.archiveContact ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
   return {
     loadContacts: loadContactsSpy,
     loadRequests: loadRequestsSpy,
     loadMissions: loadMissionsSpy,
     loadExchanges: loadExchangesSpy,
     createContact: createContactSpy,
+    updateContact: updateContactSpy,
+    archiveContact: archiveContactSpy,
     loadContactsSpy,
     loadRequestsSpy,
     loadMissionsSpy,
     loadExchangesSpy,
     createContactSpy,
+    updateContactSpy,
+    archiveContactSpy,
   };
 }
 
@@ -119,6 +139,14 @@ const SAMPLE_CONTACT_CREATED: Contact = {
   totalRequests: 0,
   totalMissions: 0,
   avatarSeed: 'c-new-bbbb',
+};
+
+const SAMPLE_CONTACT_JEAN_UPDATED: Contact = {
+  ...SAMPLE_CONTACT_JEAN,
+  firstName: 'Jean-Paul',
+  company: 'ACME Corp',
+  email: 'jeanpaul@acme.fr',
+  relationship: 'client' as const,
 };
 
 describe('AppStore → Repository', () => {
@@ -404,6 +432,160 @@ describe('AppStore → Repository', () => {
 
     expect(caughtError).toBeInstanceOf(Error);
     expect((caughtError as Error).message).toMatch(/create boom/);
+    const after = getLatest().contacts;
+    expect(after).toHaveLength(1);
+    expect(after[0]?.id).toBe('c-1');
+  });
+
+  it('12. updateContact appelle repository.updateContact et remplace le bon contact sans doublon', async () => {
+    const repo = buildRepository({
+      loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN]),
+      updateContact: (id, input) => {
+        expect(id).toBe(SAMPLE_CONTACT_JEAN.id);
+        expect(input.firstName).toBe('Jean-Paul');
+        return Promise.resolve(SAMPLE_CONTACT_JEAN_UPDATED);
+      },
+    });
+    const { Capture, getLatest } = snap('capture-12', (d) => ({
+      contacts: d.contacts,
+      updateContact: d.updateContact,
+    }));
+
+    render(
+      <AppStoreProvider repository={repo}>
+        <Capture />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(getLatest().contacts).toHaveLength(1);
+      expect(getLatest().contacts[0]?.id).toBe('c-1');
+    });
+
+    const before = getLatest().contacts;
+    expect(before[0]?.firstName).toBe('Jean');
+
+    await act(async () => {
+      await getLatest().updateContact(SAMPLE_CONTACT_JEAN.id, { firstName: 'Jean-Paul' });
+    });
+
+    expect(repo.updateContactSpy).toHaveBeenCalledTimes(1);
+    expect(repo.updateContactSpy).toHaveBeenCalledWith(SAMPLE_CONTACT_JEAN.id, { firstName: 'Jean-Paul' });
+
+    const after = getLatest().contacts;
+    expect(after).toHaveLength(1);
+    expect(after[0]?.id).toBe('c-1');
+    expect(after[0]?.firstName).toBe('Jean-Paul');
+    expect(after[0]?.company).toBe('ACME Corp');
+    expect(after[0]?.totalRequests).toBe(0);
+  });
+
+  it('13. updateContact échoue : Promise rejetée + state contacts inchangé', async () => {
+    const { Capture, getLatest } = snap('capture-13', (d) => ({
+      contacts: d.contacts,
+      updateContact: d.updateContact,
+    }));
+
+    render(
+      <AppStoreProvider
+        repository={buildRepository({
+          loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN]),
+          updateContact: () => Promise.reject(new Error('update boom')),
+        })}
+      >
+        <Capture />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(getLatest().contacts).toHaveLength(1);
+    });
+
+    let caughtError: unknown = null;
+    await act(async () => {
+      try {
+        await getLatest().updateContact(SAMPLE_CONTACT_JEAN.id, { firstName: 'Jean-Paul' });
+      } catch (err) {
+        caughtError = err;
+      }
+    });
+
+    expect(caughtError).toBeInstanceOf(Error);
+    expect((caughtError as Error).message).toMatch(/update boom/);
+    const after = getLatest().contacts;
+    expect(after).toHaveLength(1);
+    expect(after[0]?.id).toBe('c-1');
+    expect(after[0]?.firstName).toBe('Jean');
+  });
+
+  it('14. archiveContact appelle repository.archiveContact et retire le contact de la liste active', async () => {
+    const repo = buildRepository({
+      loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN, SAMPLE_CONTACT_CREATED]),
+      archiveContact: (id) => {
+        expect(id).toBe(SAMPLE_CONTACT_JEAN.id);
+        return Promise.resolve();
+      },
+    });
+    const { Capture, getLatest } = snap('capture-14', (d) => ({
+      contacts: d.contacts,
+      archiveContact: d.archiveContact,
+    }));
+
+    render(
+      <AppStoreProvider repository={repo}>
+        <Capture />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(getLatest().contacts).toHaveLength(2);
+    });
+
+    await act(async () => {
+      await getLatest().archiveContact(SAMPLE_CONTACT_JEAN.id);
+    });
+
+    expect(repo.archiveContactSpy).toHaveBeenCalledTimes(1);
+    expect(repo.archiveContactSpy).toHaveBeenCalledWith(SAMPLE_CONTACT_JEAN.id);
+
+    const after = getLatest().contacts;
+    expect(after).toHaveLength(1);
+    expect(after[0]?.id).toBe('c-new');
+    expect(after.some((c) => c.id === 'c-1')).toBe(false);
+  });
+
+  it('15. archiveContact échoue : Promise rejetée + state contacts inchangé', async () => {
+    const { Capture, getLatest } = snap('capture-15', (d) => ({
+      contacts: d.contacts,
+      archiveContact: d.archiveContact,
+    }));
+
+    render(
+      <AppStoreProvider
+        repository={buildRepository({
+          loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN]),
+          archiveContact: () => Promise.reject(new Error('archive boom')),
+        })}
+      >
+        <Capture />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(getLatest().contacts).toHaveLength(1);
+    });
+
+    let caughtError: unknown = null;
+    await act(async () => {
+      try {
+        await getLatest().archiveContact(SAMPLE_CONTACT_JEAN.id);
+      } catch (err) {
+        caughtError = err;
+      }
+    });
+
+    expect(caughtError).toBeInstanceOf(Error);
+    expect((caughtError as Error).message).toMatch(/archive boom/);
     const after = getLatest().contacts;
     expect(after).toHaveLength(1);
     expect(after[0]?.id).toBe('c-1');

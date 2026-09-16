@@ -17,7 +17,7 @@ import {
 } from 'react';
 import type { Contact, Exchange, Mission, NavItemKey, Request } from '../types';
 import { clock } from '../config/clock';
-import type { CreateContactInput, IRepository } from '../data/repositories/interface';
+import type { CreateContactInput, IRepository, UpdateContactInput } from '../data/repositories/interface';
 import { createRepository } from '../data/repositories/factory';
 
 interface AppStoreDataSlice {
@@ -29,6 +29,8 @@ interface AppStoreDataSlice {
   error: string | null;
   reload: () => Promise<void>;
   addContact: (input: CreateContactInput) => Promise<Contact>;
+  updateContact: (contactId: string, input: UpdateContactInput) => Promise<Contact>;
+  archiveContact: (contactId: string) => Promise<void>;
 }
 
 interface AppStoreValue {
@@ -172,6 +174,38 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
     []
   );
 
+  const updateContact: AppStoreDataSlice['updateContact'] = useCallback(
+    async (contactId, input) => {
+      const repo = repositoryRef.current;
+      const updated = await repo.updateContact(contactId, input);
+      setContacts((prev) => {
+        const idx = prev.findIndex((c) => c.id === contactId);
+        if (idx === -1) {
+          return [updated, ...prev];
+        }
+        const next = prev.slice();
+        next[idx] = updated;
+        return next;
+      });
+      return updated;
+    },
+    []
+  );
+
+  const archiveContact: AppStoreDataSlice['archiveContact'] = useCallback(
+    async (contactId) => {
+      const repo = repositoryRef.current;
+      await repo.archiveContact(contactId);
+      setContacts((prev) => {
+        return prev.map((c) => {
+          if (c.id !== contactId) return c;
+          return { ...c, archived: true };
+        }).filter((c) => !c.archived);
+      });
+    },
+    []
+  );
+
   const data: AppStoreDataSlice = useMemo(
     () => ({
       contacts,
@@ -182,8 +216,10 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       error,
       reload,
       addContact,
+      updateContact,
+      archiveContact,
     }),
-    [contacts, requests, missions, exchanges, loading, error, reload, addContact]
+    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact]
   );
 
   const value: AppStoreValue = useMemo(

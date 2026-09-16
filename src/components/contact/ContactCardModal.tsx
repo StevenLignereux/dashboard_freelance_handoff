@@ -18,6 +18,8 @@ interface ContactCardModalProps {
   contactId: string | null;
   requestId?: string | null | undefined;
   onClose: () => void;
+  onEdit?: (contactId: string) => void;
+  onArchive?: (contactId: string) => void;
 }
 
 const exchangeMeta: Record<string, { label: string; color: string }> = {
@@ -47,7 +49,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onEdit, onArchive }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -257,7 +259,7 @@ export function ContactCardModal({ contactId, requestId, onClose }: ContactCardM
 
             <div className="relative z-10 flex-1 min-h-0 overflow-y-auto">
               <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-                <ModalHeader contact={contact} />
+                <ModalHeader contact={contact} onEdit={onEdit} onArchive={onArchive} />
                 <ContactIdentity contact={contact} />
                 {activeRequest && (
                   <RequestBlock
@@ -281,7 +283,7 @@ export function ContactCardModal({ contactId, requestId, onClose }: ContactCardM
   );
 }
 
-function ModalHeader({ contact }: { contact: Contact }) {
+function ModalHeader({ contact, onEdit, onArchive }: { contact: Contact; onEdit?: (contactId: string) => void; onArchive?: (contactId: string) => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
@@ -301,6 +303,36 @@ function ModalHeader({ contact }: { contact: Contact }) {
           <span className="chip bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25">
             Archivé
           </span>
+        )}
+        <div className="w-px h-6 bg-white/10 mx-1" aria-hidden="true" />
+        {onEdit && (
+          <button
+            type="button"
+            onClick={() => { onEdit(contact.id); }}
+            className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-white/10"
+            aria-label={`Modifier ${contact.firstName} ${contact.lastName}`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+            Modifier
+          </button>
+        )}
+        {onArchive && !contact.archived && (
+          <button
+            type="button"
+            onClick={() => { onArchive(contact.id); }}
+            className="btn-ghost !py-1.5 !px-2.5 text-xs text-slate-300 hover:text-brand-coral hover:bg-brand-coral/10 inline-flex items-center gap-1.5"
+            aria-label={`Archiver ${contact.firstName} ${contact.lastName}`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+              <rect x="3" y="4" width="18" height="5" rx="1" />
+              <path d="M5 4v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4" />
+              <line x1="10" y1="9" x2="14" y2="9" />
+            </svg>
+            Archiver
+          </button>
         )}
       </div>
     </div>

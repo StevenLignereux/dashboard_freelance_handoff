@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { AppStoreProvider, useAppStore } from '../../store/AppStore';
 import { ContactCardModal } from './ContactCardModal';
@@ -28,6 +28,11 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
     loadExchanges: () => Promise.resolve(se),
     createContact: (_input: CreateContactInput) =>
       Promise.reject(new Error('not implemented')),
+    updateContact: (id) => {
+      const c = sc.find((x) => x.id === id);
+      return Promise.resolve(c ?? sc[0]);
+    },
+    archiveContact: () => Promise.resolve(),
     ...overrides,
   };
 }
@@ -212,5 +217,101 @@ describe('ContactCardModal — BUG 4 : Ctrl/Cmd+K ne déplace pas le focus hors 
     });
 
     expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+});
+
+describe('ContactCardModal — Backend3A : boutons Modifier et Archiver', () => {
+  it('16. affiche le bouton Modifier lorsque la prop onEdit est fournie', async () => {
+    const onClose = vi.fn();
+    const onEdit = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-jean-dupont"
+            onClose={onClose}
+            onEdit={onEdit}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const editButton = screen.getByRole('button', { name: /Modifier Jean Dupont/i });
+    expect(editButton).toBeInTheDocument();
+
+    fireEvent.click(editButton);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledWith('c-jean-dupont');
+  });
+
+  it('n’affiche pas le bouton Modifier si la prop onEdit est absente', async () => {
+    const onClose = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-jean-dupont"
+            onClose={onClose}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+
+    expect(screen.queryByRole('button', { name: /Modifier/i })).not.toBeInTheDocument();
+  });
+
+  it('20. affiche le bouton Archiver lorsque la prop onArchive est fournie et contact non archivé', async () => {
+    const onClose = vi.fn();
+    const onArchive = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-jean-dupont"
+            onClose={onClose}
+            onArchive={onArchive}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const archiveButton = screen.getByRole('button', { name: /Archiver Jean Dupont/i });
+    expect(archiveButton).toBeInTheDocument();
+
+    fireEvent.click(archiveButton);
+    expect(onArchive).toHaveBeenCalledTimes(1);
+    expect(onArchive).toHaveBeenCalledWith('c-jean-dupont');
+  });
+
+  it('n’affiche pas le bouton Archiver si la prop onArchive est absente', async () => {
+    const onClose = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-jean-dupont"
+            onClose={onClose}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+
+    expect(screen.queryByRole('button', { name: /Archiver/i })).not.toBeInTheDocument();
   });
 });

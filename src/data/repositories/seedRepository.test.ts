@@ -227,4 +227,112 @@ describe('SeedRepository', () => {
       expect(bAfter).toHaveLength(baseCount);
     });
   });
+
+  describe('updateContact', () => {
+    it('modifie les champs autorisés sans toucher aux interdits', async () => {
+      const before = await repository.loadContacts();
+      const target = before.find((c) => c.id === 'c-jean-dupont');
+      expect(target).toBeDefined();
+      if (!target) throw new Error('missing jean');
+
+      const originalId = target.id;
+      const originalCreatedAt = target.createdAt;
+      const originalTotalRequests = target.totalRequests;
+      const originalTotalMissions = target.totalMissions;
+      const originalArchived = target.archived;
+      const originalActiveRequestId = target.activeRequestId;
+      const originalAvatarSeed = target.avatarSeed;
+
+      const updated = await repository.updateContact(target.id, {
+        firstName: 'Jean-EDITÉ',
+        lastName: 'Dupont-EDITÉ',
+        company: 'Dupont Rénové',
+        email: 'jean.edite@example.fr',
+        phone: '+33 6 00 00 00 01',
+        notes: 'Notes éditées',
+        relationship: 'client_recurrent',
+      });
+
+      expect(updated.id).toBe(originalId);
+      expect(updated.firstName).toBe('Jean-EDITÉ');
+      expect(updated.lastName).toBe('Dupont-EDITÉ');
+      expect(updated.company).toBe('Dupont Rénové');
+      expect(updated.email).toBe('jean.edite@example.fr');
+      expect(updated.phone).toBe('+33 6 00 00 00 01');
+      expect(updated.notes).toBe('Notes éditées');
+      expect(updated.relationship).toBe('client_recurrent');
+
+      expect(updated.createdAt).toBe(originalCreatedAt);
+      expect(updated.totalRequests).toBe(originalTotalRequests);
+      expect(updated.totalMissions).toBe(originalTotalMissions);
+      expect(updated.archived).toBe(originalArchived);
+      expect(updated.activeRequestId).toBe(originalActiveRequestId);
+      expect(updated.avatarSeed).toBe(originalAvatarSeed);
+    });
+
+    it('préserve les champs dérivés + persisté dans l\'instance après update', async () => {
+      const before = await repository.loadContacts();
+      const target = before[0];
+      const originalTotalRequests = target.totalRequests;
+      const originalActiveRequestId = target.activeRequestId;
+      const originalTotalMissions = target.totalMissions;
+
+      await repository.updateContact(target.id, { firstName: 'Modifié' });
+
+      const after = await repository.loadContacts();
+      const found = after.find((c) => c.id === target.id);
+      expect(found).toBeDefined();
+      expect(found?.firstName).toBe('Modifié');
+      expect(found?.totalRequests).toBe(originalTotalRequests);
+      expect(found?.totalMissions).toBe(originalTotalMissions);
+      expect(found?.activeRequestId).toBe(originalActiveRequestId);
+    });
+
+    it('lance une erreur explicite si contact inconnu', async () => {
+      await expect(
+        repository.updateContact('c-inexistant-zzz', { firstName: 'Personne' })
+      ).rejects.toThrow(/contact id=c-inexistant-zzz not found/);
+    });
+  });
+
+  describe('archiveContact', () => {
+    it('passe archived = true sur le contact visé', async () => {
+      const before = await repository.loadContacts();
+      const target = before.find((c) => c.id === 'c-sophie-martin');
+      expect(target).toBeDefined();
+      if (!target) throw new Error('missing sophie');
+      expect(target.archived).toBe(false);
+      const targetId = target.id;
+
+      await repository.archiveContact(targetId);
+
+      const after = await repository.loadContacts();
+      const found = after.find((c) => c.id === targetId);
+      expect(found).toBeDefined();
+      expect(found?.archived).toBe(true);
+    });
+
+    it('ne touche pas aux autres contacts', async () => {
+      const before = await repository.loadContacts();
+      const baseCount = before.length;
+      const jean = before.find((c) => c.id === 'c-jean-dupont');
+      expect(jean?.archived).toBe(false);
+
+      const sophie = before.find((c) => c.id === 'c-sophie-martin');
+      expect(sophie).toBeDefined();
+      if (!sophie) throw new Error('missing sophie');
+      await repository.archiveContact(sophie.id);
+
+      const after = await repository.loadContacts();
+      expect(after).toHaveLength(baseCount);
+      const jeanAfter = after.find((c) => c.id === 'c-jean-dupont');
+      expect(jeanAfter?.archived).toBe(false);
+    });
+
+    it('lance une erreur explicite si contact inconnu', async () => {
+      await expect(
+        repository.archiveContact('c-nexiste-pas-999')
+      ).rejects.toThrow(/id=c-nexiste-pas-999 not found/);
+    });
+  });
 });

@@ -562,4 +562,246 @@ describe('SupabaseRepository', () => {
       );
     });
   });
+
+  describe('updateContact', () => {
+    it('n\'envoie JAMAIS user_id depuis input et n\'écrase pas archived/created_at/last_activity_at', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+
+      const updatedDbContact = {
+        id: 'c-jean-dupont',
+        first_name: 'Jean',
+        last_name: 'Dupont',
+        company: null,
+        email: null,
+        phone: null,
+        notes: null,
+        relationship: 'client',
+        created_at: '2024-01-01T00:00:00Z',
+        last_activity_at: '2024-01-10T00:00:00Z',
+        archived: false,
+        user_id: 'user-1',
+      };
+      const relatedRequests = [
+        {
+          id: 'r-1',
+          contact_id: 'c-jean-dupont',
+          title: 'X',
+          description: null,
+          status: 'nouveau',
+          created_at: '2024-01-01T00:00:00Z',
+          last_activity_at: '2024-01-02T00:00:00Z',
+          is_active: true,
+          archived: false,
+          user_id: 'user-1',
+        },
+      ];
+      const relatedMissions: unknown[] = [];
+
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatches.push(patch);
+        return {
+          eq: (_k: string, _v: string) => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: updatedDbContact, error: null }),
+            }),
+          }),
+        };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'contacts') {
+          return { update: mockUpdate };
+        }
+        if (table === 'requests') {
+          return { select: () => Promise.resolve({ data: relatedRequests, error: null }) };
+        }
+        if (table === 'missions') {
+          return { select: () => Promise.resolve({ data: relatedMissions, error: null }) };
+        }
+        return { select: vi.fn() };
+      });
+
+      const updated = await repository.updateContact('c-jean-dupont', {
+        firstName: 'Jean-Michel',
+        lastName: 'Dupont',
+        company: 'XYZ',
+        email: 'jm@exemple.fr',
+        phone: '0123',
+        notes: 'note',
+        relationship: 'ancien_client',
+      });
+
+      expect(capturedPatches).toHaveLength(1);
+      const patch = capturedPatches[0];
+      expect(patch.first_name).toBe('Jean-Michel');
+      expect(patch.last_name).toBe('Dupont');
+      expect(patch.company).toBe('XYZ');
+      expect(patch.email).toBe('jm@exemple.fr');
+      expect(patch.phone).toBe('0123');
+      expect(patch.notes).toBe('note');
+      expect(patch.relationship).toBe('ancien_client');
+      expect(patch).not.toHaveProperty('user_id');
+      expect(patch).not.toHaveProperty('archived');
+      expect(patch).not.toHaveProperty('created_at');
+      expect(patch).not.toHaveProperty('last_activity_at');
+
+      expect(updated.id).toBe('c-jean-dupont');
+      expect(updated.totalRequests).toBe(1);
+      expect(updated.activeRequestId).toBe('r-1');
+      expect(updated.totalMissions).toBe(0);
+    });
+
+    it('ne modifie pas archived via updateContact', async () => {
+      let capturedPatch: Record<string, unknown> = {};
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatch = { ...patch };
+        return {
+          eq: () => ({
+            select: () => ({
+              single: () => Promise.resolve({
+                data: {
+                  id: 'c-1',
+                  first_name: 'A',
+                  last_name: 'B',
+                  company: null,
+                  email: null,
+                  phone: null,
+                  notes: null,
+                  relationship: 'prospect',
+                  created_at: '2024-01-01T00:00:00Z',
+                  last_activity_at: '2024-01-10T00:00:00Z',
+                  archived: false,
+                  user_id: 'u-1',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      });
+
+      mockFrom.mockImplementation((table) => {
+        if (table === 'contacts') return { update: mockUpdate };
+        if (table === 'requests') return { select: () => Promise.resolve({ data: [], error: null }) };
+        if (table === 'missions') return { select: () => Promise.resolve({ data: [], error: null }) };
+        return { select: vi.fn() };
+      });
+
+      await repository.updateContact('c-1', { firstName: 'X' });
+
+      expect(capturedPatch.archived).toBeUndefined();
+      expect(capturedPatch.user_id).toBeUndefined();
+    });
+
+    it('propage une erreur Supabase de l\'UPDATE', async () => {
+      const mockError = { message: 'Update boom' };
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: () => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: null, error: mockError }),
+          }),
+        }),
+      });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'contacts') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      await expect(
+        repository.updateContact('c-1', { firstName: 'X' })
+      ).rejects.toThrow(/Failed to update contact id=c-1: Update boom/);
+    });
+
+    it('le Contact retourné conserve des dérivés cohérents (totalRequests/activeRequestId/totalMissions calculés depuis relations rechargées)', async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: () => ({
+          select: () => ({
+            single: () => Promise.resolve({
+              data: {
+                id: 'c-has-relations',
+                first_name: 'Toto',
+                last_name: 'Tata',
+                company: null,
+                email: null,
+                phone: null,
+                notes: null,
+                relationship: 'client',
+                created_at: '2024-01-01T00:00:00Z',
+                last_activity_at: '2024-02-01T00:00:00Z',
+                archived: false,
+                user_id: 'u-1',
+              },
+              error: null,
+            }),
+          }),
+        }),
+      });
+      const mockRequests = [
+        { id: 'r-a', contact_id: 'c-has-relations', title: 'R1', description: null, status: 'nouveau', created_at: '2024-01-02', last_activity_at: '2024-01-03', is_active: true, archived: false, user_id: 'u-1' },
+        { id: 'r-b', contact_id: 'c-has-relations', title: 'R2', description: null, status: 'en_attente', created_at: '2024-01-05', last_activity_at: '2024-01-06', is_active: false, archived: false, user_id: 'u-1' },
+      ];
+      const mockMissions = [
+        { id: 'm-x', request_id: 'r-a', title: 'M1', status: 'en_cours', start_date: null, end_date: null, progress: null, notes: null, created_at: '2024-01-10', updated_at: '2024-01-11', user_id: 'u-1' },
+        { id: 'm-y', request_id: 'r-b', title: 'M2', status: 'terminee', start_date: null, end_date: null, progress: null, notes: null, created_at: '2024-01-12', updated_at: '2024-01-13', user_id: 'u-1' },
+      ];
+
+      mockFrom.mockImplementation((t) => {
+        if (t === 'contacts') return { update: mockUpdate };
+        if (t === 'requests') return { select: () => Promise.resolve({ data: mockRequests, error: null }) };
+        if (t === 'missions') return { select: () => Promise.resolve({ data: mockMissions, error: null }) };
+        return { select: vi.fn() };
+      });
+
+      const updated = await repository.updateContact('c-has-relations', { firstName: 'Toto' });
+
+      expect(updated.id).toBe('c-has-relations');
+      expect(updated.totalRequests).toBe(2);
+      expect(updated.activeRequestId).toBe('r-a');
+      expect(updated.totalMissions).toBe(2);
+      expect(updated.firstName).toBe('Toto');
+    });
+  });
+
+  describe('archiveContact', () => {
+    it('utilise UPDATE archived=true avec filtre id uniquement', async () => {
+      let capturedPatch: Record<string, unknown> | null = null;
+      let capturedEq: [string, unknown] | null = null;
+
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatch = patch;
+        return {
+          eq: (key: string, val: unknown) => {
+            capturedEq = [key, val];
+            return Promise.resolve({ data: null, error: null });
+          },
+        };
+      });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'contacts') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      await repository.archiveContact('c-123');
+
+      expect(capturedPatch).not.toBeNull();
+      expect(capturedPatch).toEqual({ archived: true });
+      expect(capturedEq).not.toBeNull();
+      expect(capturedEq?.[0]).toBe('id');
+      expect(capturedEq?.[1]).toBe('c-123');
+    });
+
+    it('propage une erreur Supabase', async () => {
+      const mockError = { message: 'archive boom' };
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: () => Promise.resolve({ data: null, error: mockError }),
+      });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'contacts') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      await expect(repository.archiveContact('c-x')).rejects.toThrow(
+        /Failed to archive contact id=c-x: archive boom/
+      );
+    });
+  });
 });
