@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore, useReducedMotion } from '../../store/AppStore';
 import type { Contact } from '../../types';
@@ -48,6 +48,11 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
 
   const isOpen = !!request;
 
+  const requestClose = useCallback(() => {
+    if (pending) return;
+    onClose();
+  }, [pending, onClose]);
+
   useEffect(() => {
     if (!request) return;
     setTitle(request.title);
@@ -83,7 +88,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        requestClose();
         return;
       }
       if (e.key !== 'Tab' || !panelRef.current) return;
@@ -117,7 +122,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
         lastFocusedRef.current.focus({ preventScroll: true });
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, requestClose]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -147,7 +152,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
           <motion.div
             key={`backdrop-${request.id}`}
             className="absolute inset-0 bg-black/75 backdrop-blur-md"
-            onClick={onClose}
+            onClick={requestClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -222,7 +227,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   className="btn-ghost"
                   disabled={pending}
                 >

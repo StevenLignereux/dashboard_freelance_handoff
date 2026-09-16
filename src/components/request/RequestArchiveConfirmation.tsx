@@ -42,6 +42,11 @@ export function RequestArchiveConfirmation({ requestId, onClose, onSuccess }: Re
 
   const isOpen = !!request;
 
+  const requestClose = useCallback(() => {
+    if (pending) return;
+    onClose();
+  }, [pending, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     setPending(false);
@@ -75,7 +80,7 @@ export function RequestArchiveConfirmation({ requestId, onClose, onSuccess }: Re
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        requestClose();
         return;
       }
       if (e.key !== 'Tab' || !panelRef.current) return;
@@ -109,7 +114,7 @@ export function RequestArchiveConfirmation({ requestId, onClose, onSuccess }: Re
         lastFocusedRef.current.focus({ preventScroll: true });
       }
     };
-  }, [isOpen, onClose, onSuccess]);
+  }, [isOpen, requestClose, onSuccess]);
 
   const handleConfirm = useCallback(async () => {
     if (pending) return;
@@ -132,9 +137,8 @@ export function RequestArchiveConfirmation({ requestId, onClose, onSuccess }: Re
   }, [pending, requestId, store.data, onClose, onSuccess]);
 
   const handleCancel = useCallback(() => {
-    if (pending) return;
-    onClose();
-  }, [pending, onClose]);
+    requestClose();
+  }, [requestClose]);
 
   if (!request) return null;
 
@@ -144,7 +148,7 @@ export function RequestArchiveConfirmation({ requestId, onClose, onSuccess }: Re
           <motion.div
             key={`backdrop-archive-${request.id}`}
             className="absolute inset-0 bg-black/75 backdrop-blur-md"
-            onClick={handleCancel}
+            onClick={requestClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

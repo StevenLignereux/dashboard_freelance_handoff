@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore, useReducedMotion } from '../../store/AppStore';
 import type { Contact } from '../../types';
@@ -41,6 +41,11 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
 
   const isOpen = !!contact;
 
+  const requestClose = useCallback(() => {
+    if (pending) return;
+    onClose();
+  }, [pending, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     setTitle('');
@@ -76,7 +81,7 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        requestClose();
         return;
       }
       if (e.key !== 'Tab' || !panelRef.current) return;
@@ -110,7 +115,7 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
         lastFocusedRef.current.focus({ preventScroll: true });
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, requestClose]);
 
   if (!contact) return null;
 
@@ -140,7 +145,7 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
           <motion.div
             key={`backdrop-${contact.id}`}
             className="absolute inset-0 bg-black/75 backdrop-blur-md"
-            onClick={onClose}
+            onClick={requestClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -215,7 +220,7 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   className="btn-ghost"
                   disabled={pending}
                 >

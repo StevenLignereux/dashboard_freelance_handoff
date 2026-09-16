@@ -106,6 +106,12 @@ function Router() {
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [archivingRequestId, setArchivingRequestId] = useState<string | null>(null);
   const [preRequestPayload, setPreRequestPayload] = useState<OpenContactPayload | null>(null);
+  type PendingRequestModal =
+    | { type: 'create'; contactId: string }
+    | { type: 'edit'; requestId: string }
+    | { type: 'archive'; requestId: string }
+    | null;
+  const [pendingRequestModal, setPendingRequestModal] = useState<PendingRequestModal>(null);
 
   const editingContact = editingContactId
     ? store.data.contacts.find((c) => c.id === editingContactId) ?? null
@@ -168,16 +174,34 @@ function Router() {
     setPreArchiveContact(null);
   }, []);
 
+  const handleContactCardExitComplete = useCallback(() => {
+    const pending = pendingRequestModal;
+    if (!pending) return;
+    setPendingRequestModal(null);
+    switch (pending.type) {
+      case 'create':
+        setCreatingRequestForContactId(pending.contactId);
+        break;
+      case 'edit':
+        setEditingRequestId(pending.requestId);
+        break;
+      case 'archive':
+        setArchivingRequestId(pending.requestId);
+        break;
+    }
+  }, [pendingRequestModal]);
+
   const handleCreateRequest = useCallback((contactId: string) => {
     const payload = activeContact?.contactId === contactId ? activeContact : { contactId };
     setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'create', contactId });
     setActiveContact(null);
-    setCreatingRequestForContactId(contactId);
   }, [activeContact]);
 
   const handleCancelCreateRequest = useCallback(() => {
     const toReopen = preRequestPayload;
     setCreatingRequestForContactId(null);
+    setPendingRequestModal(null);
     setPreRequestPayload(null);
     if (toReopen) {
       setActiveContact(toReopen);
@@ -189,13 +213,14 @@ function Router() {
     if (!contactId) return;
     const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
     setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'edit', requestId });
     setActiveContact(null);
-    setEditingRequestId(requestId);
   }, [store.data.requests, activeContact]);
 
   const handleCancelEditRequest = useCallback(() => {
     const toReopen = preRequestPayload;
     setEditingRequestId(null);
+    setPendingRequestModal(null);
     setPreRequestPayload(null);
     if (toReopen) {
       setActiveContact(toReopen);
@@ -207,13 +232,14 @@ function Router() {
     if (!contactId) return;
     const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
     setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'archive', requestId });
     setActiveContact(null);
-    setArchivingRequestId(requestId);
   }, [store.data.requests, activeContact]);
 
   const handleCancelArchiveRequest = useCallback(() => {
     const toReopen = preRequestPayload;
     setArchivingRequestId(null);
+    setPendingRequestModal(null);
     setPreRequestPayload(null);
     if (toReopen) {
       setActiveContact(toReopen);
@@ -261,6 +287,7 @@ function Router() {
             contactId={activeContact?.contactId ?? null}
             requestId={activeContact?.requestId}
             onClose={handleCloseContact}
+            onExitComplete={handleContactCardExitComplete}
             onEdit={handleEdit}
             onArchive={handleArchive}
             onCreateRequest={handleCreateRequest}

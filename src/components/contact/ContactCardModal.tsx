@@ -18,6 +18,7 @@ interface ContactCardModalProps {
   contactId: string | null;
   requestId?: string | null | undefined;
   onClose: () => void;
+  onExitComplete?: () => void;
   onEdit?: (contactId: string) => void;
   onArchive?: (contactId: string) => void;
   onCreateRequest?: (contactId: string) => void;
@@ -52,7 +53,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -163,7 +164,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onEdit, onArch
   }, [isOpen]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onExitComplete}>
       {contact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10">
           <motion.div

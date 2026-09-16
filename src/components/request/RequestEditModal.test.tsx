@@ -183,4 +183,73 @@ describe('RequestEditModal', () => {
     expect(input.description).toBe(null);
     /* eslint-enable */
   });
+
+  it('61. Edit: pending lock Escape/backdrop → submit deferred, Escape/backdrop blocked, resolve closes', async () => {
+    const d = deferred<Request>();
+    const updateMock = vi
+      .fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>()
+      .mockReturnValue(d.promise);
+    const onClose = vi.fn();
+    const repo = buildRepository({ updateRequest: updateMock });
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <RequestEditModal requestId="r-jean-site" onClose={onClose} />
+        </>,
+        repo
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const dialog = screen.getByRole('dialog', { name: /Modifier une demande/i });
+    expect(dialog).toBeInTheDocument();
+
+    const titleInput = screen.getByRole('textbox', { name: /^Titre/i });
+    await waitFor(() => { expect(titleInput).toHaveValue('Création site vitrine'); });
+
+    fireEvent.change(titleInput, { target: { value: 'Titre modifié en attente' } });
+
+    const saveButton = screen.getByRole('button', { name: /Enregistrer/i });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(saveButton);
+    });
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: /Modifier une demande/i })).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+
+    const backdrop = dialog.parentElement?.querySelector<HTMLElement>('.absolute.inset-0.bg-black\\/75') ?? null;
+    expect(backdrop).not.toBeNull();
+    if (!backdrop) throw new Error('backdrop missing');
+    fireEvent.click(backdrop);
+    expect(dialog).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    const sample = seedRequests[0];
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      d.resolve({ ...sample, title: 'Titre modifié en attente' });
+    });
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}

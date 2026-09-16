@@ -85,6 +85,16 @@ function DataReady() {
   return null;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 const TEST_CONTACT: Contact = {
   id: 'c-test-create-req',
   firstName: 'Alice',
@@ -219,5 +229,140 @@ describe('RequestCreateModal', () => {
     });
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('59. Create: pending lock Escape/backdrop → submit deferred, Escape/backdrop NOT close, resolve then close', async () => {
+    const d = deferred<Request>();
+    const createRequestMock = vi
+      .fn<(input: CreateRequestInput) => Promise<Request>>()
+      .mockReturnValue(d.promise);
+    const onClose = vi.fn();
+    const repo = buildRepository({ createRequest: createRequestMock });
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <RequestCreateModal contact={TEST_CONTACT} onClose={onClose} />
+        </>,
+        repo
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const titleInput = screen.getByRole('textbox', { name: /^Titre/i });
+    fireEvent.change(titleInput, { target: { value: 'Demo pending' } });
+
+    const submitButton = screen.getByRole('button', { name: /Créer la demande/i });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
+
+    expect(createRequestMock).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    const dialog = screen.getByRole('dialog', { name: /Créer une demande/i });
+    expect(dialog).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    const backdrop = dialog.parentElement?.querySelector<HTMLElement>('.absolute.inset-0.bg-black\\/75') ?? null;
+    expect(backdrop).not.toBeNull();
+    if (!backdrop) throw new Error('backdrop missing');
+    fireEvent.click(backdrop);
+    expect(dialog).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    const created: Request = {
+      id: 'r-created-59',
+      contactId: TEST_CONTACT.id,
+      title: 'Demo pending',
+      status: 'nouveau',
+      createdAt: new Date().toISOString(),
+      lastActivityAt: new Date().toISOString(),
+      archived: false,
+    };
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      d.resolve(created);
+    });
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('60. Create: pending + rejection → lock active, error alert visible, modal stays and retryable', async () => {
+    const d = deferred<Request>();
+    const createRequestMock = vi
+      .fn<(input: CreateRequestInput) => Promise<Request>>()
+      .mockReturnValueOnce(d.promise)
+      .mockResolvedValueOnce({
+        id: 'r-created-60-bis',
+        contactId: TEST_CONTACT.id,
+        title: 'Retry',
+        status: 'nouveau',
+        createdAt: new Date().toISOString(),
+        lastActivityAt: new Date().toISOString(),
+        archived: false,
+      });
+    const onClose = vi.fn();
+    const repo = buildRepository({ createRequest: createRequestMock });
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <RequestCreateModal contact={TEST_CONTACT} onClose={onClose} />
+        </>,
+        repo
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const titleInput = screen.getByRole('textbox', { name: /^Titre/i });
+    fireEvent.change(titleInput, { target: { value: 'Demo fail' } });
+
+    const submitButton = screen.getByRole('button', { name: /Créer la demande/i });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
+
+    // Try Escape during pending: should not close
+    const dialog = screen.getByRole('dialog', { name: /Créer une demande/i });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      d.reject(new Error('boom create'));
+    });
+
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert).toBeInTheDocument();
+      expect(alert.textContent).toMatch(/boom create/);
+    });
+
+    // Modal still open and retryable
+    expect(dialog).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.change(titleInput, { target: { value: 'Retry' } });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(createRequestMock).toHaveBeenCalledTimes(2);
   });
 });
