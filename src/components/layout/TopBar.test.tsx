@@ -125,6 +125,8 @@ const NOOP_REPO: IRepository = {
   loadMissions: () => Promise.resolve<Mission[]>([]),
   loadExchanges: () => Promise.resolve<Exchange[]>([]),
   createContact: async (_input: CreateContactInput) => ({ ...EMPTY_CONTACT }),
+  updateContact: async (id, _input) => ({ ...EMPTY_CONTACT, id }),
+  archiveContact: (_id) => Promise.resolve(),
 };
 
 function wrap(children: ReactNode, authClient: FakeAuthClient) {

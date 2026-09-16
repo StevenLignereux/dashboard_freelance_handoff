@@ -7,7 +7,7 @@
  */
 
 import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, IRepository } from './interface';
+import type { CreateContactInput, IRepository, UpdateContactInput } from './interface';
 import {
   seedContacts,
   seedRequests,
@@ -69,5 +69,56 @@ export class SeedRepository implements IRepository {
     this.contacts.push(newContact);
 
     return Promise.resolve(newContact);
+  }
+
+  async updateContact(contactId: string, input: UpdateContactInput): Promise<Contact> {
+    const idx = this.contacts.findIndex((c) => c.id === contactId);
+    if (idx === -1) {
+      throw new Error(`Cannot update contact: contact id=${contactId} not found.`);
+    }
+
+    const previous = this.contacts[idx];
+
+    const updated: Contact = {
+      ...previous,
+      firstName: input.firstName ?? previous.firstName,
+      lastName: input.lastName ?? previous.lastName,
+      company:
+        input.company === undefined
+          ? previous.company
+          : input.company ?? undefined,
+      email:
+        input.email === undefined
+          ? previous.email
+          : input.email ?? undefined,
+      phone:
+        input.phone === undefined
+          ? previous.phone
+          : input.phone ?? undefined,
+      notes:
+        input.notes === undefined
+          ? previous.notes
+          : input.notes ?? undefined,
+      relationship: input.relationship ?? previous.relationship,
+    };
+
+    this.contacts[idx] = updated;
+
+    return Promise.resolve(updated);
+  }
+
+  archiveContact(contactId: string): Promise<void> {
+    const idx = this.contacts.findIndex((c) => c.id === contactId);
+    if (idx === -1) {
+      return Promise.reject(new Error(`Cannot archive contact: id=${contactId} not found`));
+    }
+    const prev = this.contacts[idx];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!prev) return Promise.reject(new Error(`Cannot archive contact: id=${contactId} missing slot`));
+    this.contacts[idx] = {
+      ...prev,
+      archived: true,
+    };
+    return Promise.resolve();
   }
 }

@@ -14,6 +14,8 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
     loadExchanges: () => Promise.resolve([]),
     createContact: (_input: CreateContactInput) =>
       Promise.reject(new Error('not implemented')),
+    updateContact: (id, _input) => Promise.reject(new Error(`updateContact ${id} not implemented`)),
+    archiveContact: (_id) => Promise.reject(new Error('archiveContact not implemented')),
     ...overrides,
   };
 }
