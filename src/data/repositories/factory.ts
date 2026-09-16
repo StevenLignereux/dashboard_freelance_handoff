@@ -19,16 +19,17 @@ import { SupabaseRepository } from './supabaseRepository';
 export type DataSource = 'seed' | 'supabase';
 
 /**
- * Source de données PAR DÉFAUT pour Backend 1B.
- * Valeur fixée explicitement : `seed`.
+ * Source de données PAR DÉFAUT pour Backend 2B.
+ * Valeur fixée explicitement : `supabase`.
  *
  * Ceci garantit :
- *  - Pas d'ambiguïté (aucune déduction implicite depuis env)
- *  - Une modification VOLONTAIRE est requise pour passer à Supabase
- * Pour Supabase : surcharger via createRepositoryWithSource('supabase')
- * ou changer ici à la main quand on est PRÊT.
+ *  - Pas d'ambiguïté (aucune déduction implicite depuis env ni isSupabaseConfigured)
+ *  - Pas de fallback silencieux : erreur Supabase = vraie erreur, pas de seed en RAM
+ *  - Une modification VOLONTAIRE est requise pour repasser à seed
+ * Pour seed : surcharger via createRepositoryWithSource('seed')
+ * ou changer ici à la main quand on a besoin de seed seulement.
  */
-export const DEFAULT_DATA_SOURCE: DataSource = 'seed';
+export const DEFAULT_DATA_SOURCE: DataSource = 'supabase';
 
 /**
  * Export rétro-compatible pour tout consommateur existant de `DATA_SOURCE`.

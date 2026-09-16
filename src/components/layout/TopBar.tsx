@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../../auth/AuthProvider';
 import { useAppStore } from '../../store/AppStore';
 import { currentUser } from '../../config/appConfig';
 
@@ -9,6 +10,23 @@ interface TopBarProps {
 
 export function TopBar({ onToggleSidebar, menuButtonRef }: TopBarProps) {
   const store = useAppStore();
+  const auth = useAuth();
+  const [signOutPending, setSignOutPending] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
+  const handleSignOut = useCallback(async () => {
+    if (signOutPending) return;
+    setSignOutPending(true);
+    setSignOutError(null);
+    try {
+      await auth.signOut();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSignOutError(msg || 'Impossible de se déconnecter.');
+    } finally {
+      setSignOutPending(false);
+    }
+  }, [auth, signOutPending]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -79,8 +97,37 @@ export function TopBar({ onToggleSidebar, menuButtonRef }: TopBarProps) {
             </div>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-brand-green ring-2 ring-bg-surface" />
           </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={signOutPending}
+            className="btn-ghost !p-2 sm:!px-3 sm:!py-2"
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-5 h-5 sm:mr-2"
+              aria-hidden="true"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span className="hidden sm:inline text-sm">Déconnexion</span>
+          </button>
         </div>
       </div>
+      {signOutError ? (
+        <div role="alert" aria-live="assertive" className="px-4 sm:px-6 lg:px-8 py-2 bg-brand-coral/10 border-b border-brand-coral/20">
+          <p className="text-sm text-brand-coral text-right">{signOutError}</p>
+        </div>
+      ) : null}
     </header>
   );
 }

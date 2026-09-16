@@ -8,6 +8,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ContactCardModal } from './components/contact/ContactCardModal';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
 import { ContactCreateModal } from './components/contact/ContactCreateModal';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { LoginPage } from './pages/LoginPage';
 
 export interface OpenContactPayload {
   contactId: string;
@@ -70,6 +72,20 @@ function DataErrorFallback({ message, onRetry }: DataErrorFallbackProps) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AuthLoadingFallback() {
+  return (
+    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-3 px-4 text-slate-300">
+      <div
+        className="w-9 h-9 rounded-full border-2 border-brand-violet/40 border-t-brand-violet animate-spin"
+        aria-hidden="true"
+      />
+      <p role="status" aria-live="polite" className="text-sm">
+        Chargement de votre session…
+      </p>
     </div>
   );
 }
@@ -145,10 +161,65 @@ function Router() {
   );
 }
 
-export default function App() {
+function AuthErrorFallback({ message }: { message: string }) {
   return (
-    <AppStoreProvider>
-      <Router />
-    </AppStoreProvider>
+    <div className="min-h-screen w-full flex items-center justify-center px-4 py-12 text-slate-300 bg-bg-base">
+      <div
+        role="alert"
+        aria-live="assertive"
+        className="mx-auto w-full max-w-md rounded-2xl bg-bg-surface/70 border border-white/10 p-6 shadow-2xl shadow-black/40"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-11 h-11 shrink-0 rounded-xl bg-brand-coral/15 border border-brand-coral/20 flex items-center justify-center" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-brand-coral">
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display font-semibold text-white text-lg leading-tight">
+              Configuration d&rsquo;authentification indisponible
+            </h1>
+            <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+              {message}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
+
+/**
+ * AuthGate : orchestre le flux d'authentification.
+ * AppStoreProvider n'est monté QUE si l'utilisateur est authentifié (session présente).
+ * LoginPage est rendue en l'absence de session SAUF si Supabase est mal configuré.
+ */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const auth = useAuth();
+  if (auth.loading) {
+    return <AuthLoadingFallback />;
+  }
+  if (auth.error && !auth.session) {
+    return <AuthErrorFallback message={auth.error} />;
+  }
+  if (!auth.session) {
+    return <LoginPage />;
+  }
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate>
+        <AppStoreProvider>
+          <Router />
+        </AppStoreProvider>
+      </AuthGate>
+    </AuthProvider>
+  );
+}
+
+export { AuthGate, Router };

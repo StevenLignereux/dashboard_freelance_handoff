@@ -3,9 +3,38 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { AppStoreProvider, useAppStore } from '../../store/AppStore';
 import { ContactCardModal } from './ContactCardModal';
 import type { ReactElement } from 'react';
+import type {
+  Contact,
+  Exchange,
+  Mission,
+  Request,
+} from '../../types';
+import { seedContacts, seedRequests, seedMissions, seedExchanges } from '../../data/seedData';
+import type { CreateContactInput, IRepository } from '../../data/repositories/interface';
 
-function withWrapper(ui: ReactElement) {
-  return <AppStoreProvider>{ui}</AppStoreProvider>;
+function buildRepository(overrides?: Partial<IRepository>): IRepository {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  const sc = seedContacts as unknown as Contact[];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  const sr = seedRequests as unknown as Request[];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  const sm = seedMissions as unknown as Mission[];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  const se = seedExchanges as unknown as Exchange[];
+  return {
+    loadContacts: () => Promise.resolve(sc),
+    loadRequests: () => Promise.resolve(sr),
+    loadMissions: () => Promise.resolve(sm),
+    loadExchanges: () => Promise.resolve(se),
+    createContact: (_input: CreateContactInput) =>
+      Promise.reject(new Error('not implemented')),
+    ...overrides,
+  };
+}
+
+function withWrapper(ui: ReactElement, repository?: IRepository) {
+  const repo = repository ?? buildRepository();
+  return <AppStoreProvider repository={repo}>{ui}</AppStoreProvider>;
 }
 
 /**
