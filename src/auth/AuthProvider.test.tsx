@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, type Mock } from 'vitest';
 import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
-import { useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { Session, User, AuthError } from '@supabase/supabase-js';
 import {
   AuthProvider,
@@ -327,6 +327,110 @@ describe('AuthProvider', () => {
     expect(client.signOutSpy).toHaveBeenCalledTimes(1);
     expect((authVal as unknown as AuthValue).session).toBe(null);
     expect((authVal as unknown as AuthValue).user).toBe(null);
+  });
+
+  it('9. configuration Supabase absente → loading=false, error renseigné, aucune session, signIn/signOut propres', async () => {
+    const errMsg = "Supabase n'est pas configuré.";
+    const getSupabaseOrThrowSpy = vi.spyOn(
+      await import('../lib/supabase/client'),
+      'getSupabaseOrThrow'
+    );
+    getSupabaseOrThrowSpy.mockImplementation(() => {
+      throw new Error(errMsg);
+    });
+    let exposed2: AuthValue | null = null;
+    render(
+      <AuthProvider>
+        <Capture
+          onCapture={(a) => {
+            exposed2 = a;
+          }}
+        />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect((exposed2 as unknown as AuthValue).loading).toBe(false);
+    });
+    expect((exposed2 as unknown as AuthValue).session).toBe(null);
+    expect((exposed2 as unknown as AuthValue).user).toBe(null);
+    expect((exposed2 as unknown as AuthValue).error).toMatch(/Supabase n'est pas configuré/);
+
+    let caughtt: unknown = null;
+    await act(async () => {
+      try {
+        if (exposed2) {
+          await exposed2.signIn('a@b.co', 'x');
+        }
+      } catch (e) {
+        caughtt = e;
+      }
+    });
+    expect(caughtt).toBeInstanceOf(Error);
+    expect((caughtt as Error).message).toMatch(/Authentification indisponible/);
+
+    let caughtOut: unknown = null;
+    await act(async () => {
+      try {
+        if (exposed2) {
+          await exposed2.signOut();
+        }
+      } catch (e) {
+        caughtOut = e;
+      }
+    });
+    expect(caughtOut).toBeInstanceOf(Error);
+    expect((caughtOut as Error).message).toMatch(/Authentification indisponible/);
+
+    getSupabaseOrThrowSpy.mockRestore();
+  });
+
+  it('10. race : onAuthStateChange (session B) gagne sur getSession ultérieur (null)', async () => {
+    let resolveGetSession: ((v: Awaited<ReturnType<AuthClientLike['getSession']>>) => void) | undefined;
+    const pending = new Promise<Awaited<ReturnType<AuthClientLike['getSession']>>>((r) => {
+      resolveGetSession = r;
+    });
+
+    const userB = makeUser('u-B', 'bbb@test.local');
+    const sessionB = makeSession(userB);
+
+    const client = buildFakeAuthClient(null);
+    client.getSessionSpy.mockReturnValue(pending);
+
+    const last: { current: AuthValue | null } = { current: null };
+
+    render(
+      wrap(<Capture onCapture={(a) => { last.current = a; }} />, client)
+    );
+
+    // 1) getSession toujours pending
+    // 2) émet onAuthStateChange SIGNED_IN avec sessionB
+    act(() => {
+      client.triggerStateChange('SIGNED_IN', sessionB);
+    });
+
+    await waitFor(() => {
+      expect(last.current?.session?.access_token).toBe('at-xxx');
+      expect(last.current?.loading).toBe(false);
+    });
+    expect(last.current?.user?.id).toBe('u-B');
+
+    // 3) getSession se résout EN RETARD avec null (ancienne réponse)
+    act(() => {
+      if (resolveGetSession) {
+        resolveGetSession({ data: { session: null }, error: null });
+      }
+    });
+
+    // Attendre un tick + vérifier que session B est CONSERVÉE
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(last.current?.session?.user.id).toBe('u-B');
+    expect(last.current?.user?.email).toBe('bbb@test.local');
+    expect(last.current?.loading).toBe(false);
+    expect(last.current?.error).toBe(null);
   });
 });
 

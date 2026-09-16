@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
-import type { Session, User } from '@supabase/supabase-js';
+import type { Session, User, AuthError } from '@supabase/supabase-js';
 import { AuthProvider, type AuthClientLike } from './auth/AuthProvider';
 import { AuthGate } from './App';
 
@@ -115,5 +115,49 @@ describe('App / AuthGate', () => {
     await waitFor(() => {
       expect(screen.getByTestId('app-mounted')).toBeInTheDocument();
     });
+  });
+
+  it('16. AuthGate avec auth.error : fallback erreur config présent + LoginPage absente', async () => {
+    const errMsg = "Supabase n'est pas configuré. Vérifiez VITE_SUPABASE_URL.";
+    const authErr: AuthError = Object.assign(new Error(errMsg), {
+      code: 'MISSING_CONFIG',
+      status: 500,
+      toJSON() {
+        return { message: errMsg, code: 'MISSING_CONFIG', status: 500 };
+      },
+    }) as unknown as AuthError;
+    const authClient: AuthClientLike = {
+      getSession: () => Promise.resolve({ data: { session: null }, error: authErr }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+      signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: authErr }),
+      signOut: () => Promise.resolve({ error: null }),
+    };
+
+    render(
+      withAuth(
+        <AuthGate>
+          <div data-testid="app-mounted" />
+        </AuthGate>,
+        authClient
+      )
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { level: 1, name: /Configuration d.authentification indisponible/i })
+      ).toBeInTheDocument();
+    });
+    const alertBox = screen.getByRole('alert');
+    expect(alertBox).toBeInTheDocument();
+    expect(alertBox).toHaveAttribute('aria-live', 'assertive');
+    expect(alertBox).toHaveTextContent(errMsg);
+    // LoginPage absente
+    expect(
+      screen.queryByRole('heading', { level: 1, name: /freelance handoff/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: /^email$/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('app-mounted')).not.toBeInTheDocument();
   });
 });

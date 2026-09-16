@@ -70,20 +70,36 @@ interface AuthProviderProps {
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children, authClient }: AuthProviderProps) {
-  // Lazy init : une seule résolution du client, pas à chaque render.
-  const [client] = useState<AuthClientLike>(() => {
-    return authClient ?? getSupabaseOrThrow().auth;
-  });
-  const clientRef = useRef<AuthClientLike>(client);
-  clientRef.current = client;
+  const initResult = useMemo<{
+    client: AuthClientLike | null;
+    error: string | null;
+  }>(() => {
+    if (authClient) {
+      return { client: authClient, error: null };
+    }
+    try {
+      return { client: getSupabaseOrThrow().auth, error: null };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return { client: null, error: message };
+    }
+  }, [authClient]);
+
+  const clientRef = useRef<AuthClientLike | null>(initResult.client);
+  clientRef.current = initResult.client;
 
   const mountedRef = useRef<boolean>(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const authEventSeenRef = useRef<boolean>(false);
 
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(
+    initResult.error === null
+  );
+  const [error, setError] = useState<string | null>(
+    initResult.error ?? null
+  );
 
   const handleSessionChange = useCallback(
     (incoming: Session | null) => {
@@ -95,7 +111,13 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
   );
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const result = await clientRef.current.signInWithPassword({
+    const client = clientRef.current;
+    if (!client) {
+      throw new Error(
+        "Authentification indisponible : Supabase n'est pas configuré."
+      );
+    }
+    const result = await client.signInWithPassword({
       email,
       password,
     });
@@ -108,7 +130,13 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
   }, []);
 
   const signOut = useCallback(async () => {
-    const result = await clientRef.current.signOut();
+    const client = clientRef.current;
+    if (!client) {
+      throw new Error(
+        "Authentification indisponible : Supabase n'est pas configuré."
+      );
+    }
+    const result = await client.signOut();
     if (result.error) {
       throw new Error(
         result.error.message ||
@@ -121,13 +149,18 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
   }, []);
 
   useEffect(() => {
+    if (initResult.error || !initResult.client) {
+      return undefined;
+    }
+    const client = initResult.client;
     mountedRef.current = true;
     let cancelled = false;
 
     const runInitial = async () => {
       try {
-        const result = await clientRef.current.getSession();
+        const result = await client.getSession();
         if (cancelled || !mountedRef.current) return;
+        if (authEventSeenRef.current) return;
         if (result.error) {
           throw result.error;
         }
@@ -135,10 +168,11 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
         setError(null);
       } catch (e) {
         if (cancelled || !mountedRef.current) return;
+        if (authEventSeenRef.current) return;
         const message = e instanceof Error ? e.message : String(e);
         setError(`Impossible de récupérer la session : ${message}`);
       } finally {
-        if (!cancelled && mountedRef.current) {
+        if (!cancelled && mountedRef.current && !authEventSeenRef.current) {
           setLoading(false);
         }
       }
@@ -146,7 +180,8 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
 
     const {
       data: { subscription },
-    } = clientRef.current.onAuthStateChange((_event, incoming) => {
+    } = client.onAuthStateChange((_event, incoming) => {
+      authEventSeenRef.current = true;
       handleSessionChange(incoming);
       if (mountedRef.current) {
         setLoading(false);
@@ -166,8 +201,9 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
+      authEventSeenRef.current = false;
     };
-  }, [handleSessionChange]);
+  }, [handleSessionChange, initResult.client, initResult.error]);
 
   const value: AuthValue = useMemo(
     () => ({
