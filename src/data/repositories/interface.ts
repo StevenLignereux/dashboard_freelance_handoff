@@ -39,10 +39,10 @@ export interface CreateContactInput {
 export interface UpdateContactInput {
   firstName?: string;
   lastName?: string;
-  company?: string;
-  email?: string;
-  phone?: string;
-  notes?: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  notes?: string | null;
   relationship?: RelationshipType;
 }
 

@@ -591,6 +591,52 @@ describe('AppStore → Repository', () => {
     expect(after[0]?.id).toBe('c-1');
   });
 
+  it('9. updateContact sur ID ABSENT du state: repository appelé mais state inchangé, pas de nouvel entrée insérée', async () => {
+    const OTHER_ID = 'c-absent-xyz-999';
+    const repo = buildRepository({
+      loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN]),
+      updateContact: (id, _input) => {
+        // Retourne un contact mis à jour simulé malgré l'absence côté state
+        return Promise.resolve({
+          ...SAMPLE_CONTACT_JEAN,
+          id,
+          firstName: 'ShouldNotAppear',
+        });
+      },
+    });
+    const { Capture, getLatest } = snap('capture-upd-absent', (d) => ({
+      contacts: d.contacts,
+      updateContact: d.updateContact,
+    }));
+
+    render(
+      <AppStoreProvider repository={repo}>
+        <Capture />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(getLatest().contacts).toHaveLength(1);
+    });
+
+    const beforeIds = getLatest().contacts.map((c) => c.id);
+    let returnedVal: Contact | null = null;
+    await act(async () => {
+      returnedVal = (await getLatest().updateContact(OTHER_ID, { firstName: 'X' }));
+    });
+
+    expect(repo.updateContactSpy).toHaveBeenCalledWith(OTHER_ID, { firstName: 'X' });
+    // Repository retourne bien une valeur (non nulle)
+    expect(returnedVal).not.toBeNull();
+    expect((returnedVal as unknown as Contact).id).toBe(OTHER_ID);
+    // MAIS state n'a pas été modifié
+    const after = getLatest().contacts;
+    expect(after).toHaveLength(1);
+    const afterIds = after.map((c) => c.id);
+    expect(afterIds).toEqual(beforeIds);
+    expect(after.some((c) => c.id === OTHER_ID)).toBe(false);
+  });
+
   describe('Stabilité instance repository (lazy init)', () => {
     it('10. repository injecté en prop : instance utilisée reste stable après rerenders', async () => {
       const injectedRepo = buildRepository();

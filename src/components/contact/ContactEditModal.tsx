@@ -142,10 +142,10 @@ export function ContactEditModal({ contact, onClose }: ContactEditModalProps) {
       await store.data.updateContact(contact.id, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        company: company.trim() || undefined,
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        notes: notes.trim() || undefined,
+        company: company.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        notes: notes.trim() || null,
         relationship,
       });
       onClose();

@@ -129,7 +129,8 @@ describe('ContactEditModal — 18. Sauvegarde appelle updateContact', () => {
     const onClose = vi.fn();
     const repo = buildRepository({
       updateContact: (_id, input) => {
-        return Promise.resolve({ ...TEST_CONTACT, ...input });
+        const merged = { ...TEST_CONTACT, ...input } as unknown as Contact;
+        return Promise.resolve(merged);
       },
     });
 
@@ -253,5 +254,81 @@ describe('ContactEditModal — bouton disabled pendant sauvegarde', () => {
     if (resolveUpdate) {
       resolveUpdate(TEST_CONTACT);
     }
+  });
+});
+
+describe('ContactEditModal — vider champs facultatifs envoie null', () => {
+  it('1. vide téléphone → payload.phone = null', async () => {
+    const onClose = vi.fn();
+    const repo = buildRepository();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactEditModal contact={TEST_CONTACT} onClose={onClose} />
+        </>,
+        repo
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const phoneInput = screen.getByRole('textbox', { name: /^Téléphone/i });
+    fireEvent.change(phoneInput, { target: { value: '   ' } });
+
+    const saveButton = screen.getByRole('button', { name: /Enregistrer/i });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(saveButton);
+    });
+
+    expect(repo.updateContactSpy).toHaveBeenCalledTimes(1);
+    expect(repo.updateContactSpy).toHaveBeenCalledWith(
+      TEST_CONTACT.id,
+      expect.objectContaining({ phone: null })
+    );
+  });
+
+  it('2. vide entreprise / email / notes → tous null dans payload', async () => {
+    const onClose = vi.fn();
+    const repo = buildRepository();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactEditModal contact={TEST_CONTACT} onClose={onClose} />
+        </>,
+        repo
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const companyInput = screen.getByRole('textbox', { name: /^Entreprise/i });
+    const emailInput = screen.getByRole('textbox', { name: /^Email/i });
+    const notesInput = screen.getByRole('textbox', { name: /^Notes/i });
+
+    fireEvent.change(companyInput, { target: { value: '' } });
+    fireEvent.change(emailInput, { target: { value: '   ' } });
+    fireEvent.change(notesInput, { target: { value: '\n \t' } });
+
+    const saveButton = screen.getByRole('button', { name: /Enregistrer/i });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(saveButton);
+    });
+
+    expect(repo.updateContactSpy).toHaveBeenCalledTimes(1);
+    const calls = repo.updateContactSpy.mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const callAny = calls[0] as any;
+    const input = callAny[1];
+    expect(input.company).toBe(null);
+    expect(input.email).toBe(null);
+    expect(input.notes).toBe(null);
+    /* eslint-enable */
   });
 });

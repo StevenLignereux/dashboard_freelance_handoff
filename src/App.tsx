@@ -98,6 +98,7 @@ function Router() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [archivingContactId, setArchivingContactId] = useState<string | null>(null);
+  const [preArchiveContact, setPreArchiveContact] = useState<OpenContactPayload | null>(null);
 
   const editingContact = editingContactId
     ? store.data.contacts.find((c) => c.id === editingContactId) ?? null
@@ -136,16 +137,28 @@ function Router() {
   }, []);
 
   const handleArchive = useCallback((contactId: string) => {
+    setPreArchiveContact(
+      activeContact?.contactId === contactId
+        ? activeContact
+        : { contactId }
+    );
+    setActiveContact(null);
     setArchivingContactId(contactId);
-  }, []);
+  }, [activeContact]);
 
   const handleCancelArchive = useCallback(() => {
+    const toReopen = preArchiveContact;
     setArchivingContactId(null);
-  }, []);
+    setPreArchiveContact(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preArchiveContact]);
 
   const handleArchived = useCallback(() => {
     setArchivingContactId(null);
     setActiveContact(null);
+    setPreArchiveContact(null);
   }, []);
 
   return (

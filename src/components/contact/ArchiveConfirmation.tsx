@@ -97,10 +97,9 @@ export function ArchiveConfirmation({ contact, onCancel, onArchived }: ArchiveCo
     };
   }, [open, onCancel]);
 
-  if (!contact) return null;
-
   const handleConfirm = useCallback(async () => {
     if (isSubmitting) return;
+    if (!contact) return;
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -113,12 +112,14 @@ export function ArchiveConfirmation({ contact, onCancel, onArchived }: ArchiveCo
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, contact.id, store.data, onArchived]);
+  }, [isSubmitting, contact, store.data, onArchived]);
 
   const handleCancel = useCallback(() => {
     if (isSubmitting) return;
     onCancel();
   }, [isSubmitting, onCancel]);
+
+  if (!contact) return null;
 
   return (
     <div

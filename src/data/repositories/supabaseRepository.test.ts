@@ -765,13 +765,19 @@ describe('SupabaseRepository', () => {
     it('utilise UPDATE archived=true avec filtre id uniquement', async () => {
       let capturedPatch: Record<string, unknown> | null = null;
       let capturedEq: [string, unknown] | null = null;
+      let capturedSelectArg: unknown = undefined;
 
+      const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'c-123' }, error: null });
+      const mockSelect = vi.fn().mockImplementation((arg) => {
+        capturedSelectArg = arg;
+        return { single: mockSingle };
+      });
       const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
         capturedPatch = patch;
         return {
           eq: (key: string, val: unknown) => {
             capturedEq = [key, val];
-            return Promise.resolve({ data: null, error: null });
+            return { select: mockSelect };
           },
         };
       });
@@ -787,13 +793,15 @@ describe('SupabaseRepository', () => {
       expect(capturedEq).not.toBeNull();
       expect(capturedEq?.[0]).toBe('id');
       expect(capturedEq?.[1]).toBe('c-123');
+      expect(capturedSelectArg).toBe('id');
     });
 
     it('propage une erreur Supabase', async () => {
       const mockError = { message: 'archive boom' };
-      const mockUpdate = vi.fn().mockReturnValue({
-        eq: () => Promise.resolve({ data: null, error: mockError }),
-      });
+      const mockSingle = vi.fn().mockResolvedValue({ data: null, error: mockError });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
       mockFrom.mockImplementation((t) => {
         if (t === 'contacts') return { update: mockUpdate };
         return { select: vi.fn() };
@@ -802,6 +810,94 @@ describe('SupabaseRepository', () => {
       await expect(repository.archiveContact('c-x')).rejects.toThrow(
         /Failed to archive contact id=c-x: archive boom/
       );
+    });
+
+    it('5. UPDATE retourne zéro ligne / no data → archiveContact rejette', async () => {
+      const mockSingle = vi.fn().mockReturnValue({ data: null, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+      mockFrom.mockImplementation((t) => {
+        if (t === 'contacts') return { update: mockUpdate };
+        return { select: vi.fn() };
+      });
+
+      try {
+        await repository.archiveContact('c-absent-999');
+        expect.fail('archiveContact aurait dû rejeter');
+      } catch (err) {
+        expect(err).toBeInstanceOf(Error);
+        expect((err as Error).message).toMatch(
+          /no row updated for id=c-absent-999/
+        );
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const capturedSelect = mockSelect.mock.calls[0]?.[0];
+      // select('id') appelé
+      expect(capturedSelect).toBe('id');
+      // eq appelé avec id
+      expect(mockEq).toHaveBeenCalledWith('id', 'c-absent-999');
+    });
+  });
+
+  describe('updateContact — null = NULL SQL', () => {
+    it('4. null dans input.company/email/phone/notes transmis comme NULL dans le patch', async () => {
+      const capturedPatches: Record<string, unknown>[] = [];
+
+      const updatedDbContact = {
+        id: 'c-jean-dupont',
+        user_id: 'u-1',
+        first_name: 'Jean',
+        last_name: 'Dupont',
+        company: null,
+        email: null,
+        phone: null,
+        notes: null,
+        relationship: 'prospect',
+        archived: false,
+        created_at: '2024-06-01T00:00:00Z',
+        last_activity_at: '2024-06-10T00:00:00Z',
+      };
+      const mockSingle = vi
+        .fn()
+        .mockReturnValue({ data: updatedDbContact, error: null });
+      const mockSelectAll = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelectAll });
+      const mockUpdate = vi.fn().mockImplementation((patch) => {
+        capturedPatches.push(patch as Record<string, unknown>);
+        return { eq: mockEq };
+      });
+      const mockReqSelect = vi
+        .fn()
+        .mockResolvedValue({ data: [], error: null });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'contacts') return { update: mockUpdate };
+        if (table === 'requests' || table === 'missions') {
+          return { select: mockReqSelect };
+        }
+        return { select: vi.fn() };
+      });
+
+      await repository.updateContact('c-jean-dupont', {
+        company: null,
+        email: null,
+        phone: null,
+        notes: null,
+      });
+
+      expect(capturedPatches).toHaveLength(1);
+      const p = capturedPatches[0];
+      expect(p).toBeDefined();
+      // Vérifie l'absence des champs interdits
+      expect(p).not.toHaveProperty('user_id');
+      expect(p).not.toHaveProperty('archived');
+      expect(p).not.toHaveProperty('created_at');
+      expect(p).not.toHaveProperty('last_activity_at');
+      // Nulls bien transmis
+      expect(p.company).toBeNull();
+      expect(p.email).toBeNull();
+      expect(p.phone).toBeNull();
+      expect(p.notes).toBeNull();
     });
   });
 });

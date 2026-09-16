@@ -335,4 +335,33 @@ describe('SeedRepository', () => {
       ).rejects.toThrow(/id=c-nexiste-pas-999 not found/);
     });
   });
+
+  describe('updateContact — null efface valeur existante', () => {
+    it('3. null sur company/email/phone/notes remplace précédente valeur par undefined', async () => {
+      const repository = new SeedRepository();
+      const before = await repository.loadContacts();
+      const target = before.find((c) => c.id === 'c-jean-dupont');
+      if (!target) throw new Error('missing jean');
+      expect(target.company).toBeDefined();
+      expect(target.email).toBeDefined();
+      expect(target.phone).toBeDefined();
+
+      const updated = await repository.updateContact(target.id, {
+        company: null,
+        email: null,
+        phone: null,
+        notes: null,
+      });
+
+      expect(updated.company).toBeUndefined();
+      expect(updated.email).toBeUndefined();
+      expect(updated.phone).toBeUndefined();
+      expect(updated.notes).toBeUndefined();
+      // Champs non impactés conservés
+      expect(updated.firstName).toBe(target.firstName);
+      expect(updated.lastName).toBe(target.lastName);
+      expect(updated.id).toBe(target.id);
+      expect(updated.totalRequests).toBe(target.totalRequests);
+    });
+  });
 });

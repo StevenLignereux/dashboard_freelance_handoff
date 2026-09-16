@@ -181,7 +181,7 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       setContacts((prev) => {
         const idx = prev.findIndex((c) => c.id === contactId);
         if (idx === -1) {
-          return [updated, ...prev];
+          return prev;
         }
         const next = prev.slice();
         next[idx] = updated;

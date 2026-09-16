@@ -319,13 +319,20 @@ export class SupabaseRepository implements IRepository {
     this.ensureSupabaseConfigured();
     const sb = this.getSupabase();
 
-    const { error } = await sb
-      .from('contacts')
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const { data, error } = await (sb.from('contacts') as any)
       .update({ archived: true })
-      .eq('id', contactId);
+      .eq('id', contactId)
+      .select('id')
+      .single();
+    /* eslint-enable */
 
     if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       throw new Error(`Failed to archive contact id=${contactId}: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error(`Failed to archive contact: no row updated for id=${contactId}`);
     }
   }
 }

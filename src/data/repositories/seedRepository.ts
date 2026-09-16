@@ -83,10 +83,22 @@ export class SeedRepository implements IRepository {
       ...previous,
       firstName: input.firstName ?? previous.firstName,
       lastName: input.lastName ?? previous.lastName,
-      company: input.company ?? previous.company,
-      email: input.email ?? previous.email,
-      phone: input.phone ?? previous.phone,
-      notes: input.notes ?? previous.notes,
+      company:
+        input.company === undefined
+          ? previous.company
+          : input.company ?? undefined,
+      email:
+        input.email === undefined
+          ? previous.email
+          : input.email ?? undefined,
+      phone:
+        input.phone === undefined
+          ? previous.phone
+          : input.phone ?? undefined,
+      notes:
+        input.notes === undefined
+          ? previous.notes
+          : input.notes ?? undefined,
       relationship: input.relationship ?? previous.relationship,
     };
 
