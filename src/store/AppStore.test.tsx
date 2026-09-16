@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { describe, it, expect, vi, type Mock } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { useRef } from 'react';
 import type { Contact, Exchange, Mission, Request } from '../types';
-import type { CreateContactInput, IRepository, UpdateContactInput } from '../data/repositories/interface';
+import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../data/repositories/interface';
 import { AppStoreProvider, useAppStore, type AppStoreData } from './AppStore';
 import * as factoryModule from '../data/repositories/factory';
 
@@ -15,6 +16,9 @@ type RepositorySpy = IRepository & {
   createContactSpy: Mock<(input: CreateContactInput) => Promise<Contact>>;
   updateContactSpy: Mock<(contactId: string, input: UpdateContactInput) => Promise<Contact>>;
   archiveContactSpy: Mock<(contactId: string) => Promise<void>>;
+  createRequestSpy: Mock<(input: CreateRequestInput) => Promise<Request>>;
+  updateRequestSpy: Mock<(requestId: string, input: UpdateRequestInput) => Promise<Request>>;
+  archiveRequestSpy: Mock<(requestId: string) => Promise<void>>;
 };
 
 /**
@@ -61,6 +65,27 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
         (() => Promise.reject(new Error('not implemented')))
     );
 
+  const createRequestSpy = vi
+    .fn<(input: CreateRequestInput) => Promise<Request>>()
+    .mockImplementation(
+      overrides?.createRequest ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
+  const updateRequestSpy = vi
+    .fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>()
+    .mockImplementation(
+      overrides?.updateRequest ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
+  const archiveRequestSpy = vi
+    .fn<(requestId: string) => Promise<void>>()
+    .mockImplementation(
+      overrides?.archiveRequest ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
   return {
     loadContacts: loadContactsSpy,
     loadRequests: loadRequestsSpy,
@@ -69,6 +94,9 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     createContact: createContactSpy,
     updateContact: updateContactSpy,
     archiveContact: archiveContactSpy,
+    createRequest: createRequestSpy,
+    updateRequest: updateRequestSpy,
+    archiveRequest: archiveRequestSpy,
     loadContactsSpy,
     loadRequestsSpy,
     loadMissionsSpy,
@@ -76,6 +104,9 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     createContactSpy,
     updateContactSpy,
     archiveContactSpy,
+    createRequestSpy,
+    updateRequestSpy,
+    archiveRequestSpy,
   };
 }
 
@@ -147,6 +178,28 @@ const SAMPLE_CONTACT_JEAN_UPDATED: Contact = {
   company: 'ACME Corp',
   email: 'jeanpaul@acme.fr',
   relationship: 'client' as const,
+};
+
+const SAMPLE_REQUEST_1: Request = {
+  id: 'r-1',
+  contactId: 'c-1',
+  title: 'Demande initiale',
+  description: 'Description initiale',
+  status: 'nouveau',
+  createdAt: '2024-06-01T00:00:00Z',
+  lastActivityAt: '2024-06-02T00:00:00Z',
+  archived: false,
+};
+
+const SAMPLE_REQUEST_CREATED: Request = {
+  id: 'r-new',
+  contactId: 'c-1',
+  title: 'Nouvelle demande',
+  description: undefined,
+  status: 'nouveau',
+  createdAt: '2024-06-15T00:00:00Z',
+  lastActivityAt: '2024-06-15T00:00:00Z',
+  archived: false,
 };
 
 describe('AppStore → Repository', () => {
@@ -708,6 +761,404 @@ describe('AppStore → Repository', () => {
       } finally {
         createSpy.mockRestore();
       }
+    });
+  });
+
+  describe('AppStore → Request CRUD (tests 32-42)', () => {
+    it('32. addRequest ajoute une seule demande', async () => {
+      const { Capture, getLatest } = snap('capture-32', (d) => ({
+        requests: d.requests,
+        addRequest: d.addRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+            createRequest: () => Promise.resolve(SAMPLE_REQUEST_CREATED),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      const before = getLatest().requests;
+      await act(async () => {
+        await getLatest().addRequest({ contactId: 'c-1', title: 't' });
+      });
+
+      const after = getLatest().requests;
+      expect(after.length).toBe(before.length + 1);
+      const found = after.filter((r) => r.id === SAMPLE_REQUEST_CREATED.id);
+      expect(found).toHaveLength(1);
+    });
+
+    it('33. addRequest update totalRequests', async () => {
+      const contactWithRequest: Contact = {
+        ...SAMPLE_CONTACT_JEAN,
+        id: 'c-1',
+        totalRequests: 2,
+      };
+      const { Capture, getLatest } = snap('capture-33', (d) => ({
+        contacts: d.contacts,
+        addRequest: d.addRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadContacts: () => Promise.resolve([contactWithRequest]),
+            createRequest: () => Promise.resolve(SAMPLE_REQUEST_CREATED),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      const before = getLatest().contacts[0].totalRequests;
+      await act(async () => {
+        await getLatest().addRequest({ contactId: 'c-1', title: 't' });
+      });
+
+      const after = getLatest().contacts[0].totalRequests;
+      expect(after).toBe(before + 1);
+    });
+
+    it('34. addRequest update activeRequestId', async () => {
+      const contactSansActive: Contact = {
+        ...SAMPLE_CONTACT_JEAN,
+        id: 'c-1',
+        activeRequestId: undefined,
+      };
+      const { Capture, getLatest } = snap('capture-34', (d) => ({
+        contacts: d.contacts,
+        addRequest: d.addRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadContacts: () => Promise.resolve([contactSansActive]),
+            createRequest: () => Promise.resolve({ ...SAMPLE_REQUEST_CREATED, id: 'r-spy-id' }),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().addRequest({ contactId: 'c-1', title: 't' });
+      });
+
+      const after = getLatest().contacts[0];
+      expect(after.activeRequestId).toBe('r-spy-id');
+    });
+
+    it('35. erreur addRequest → state inchangé', async () => {
+      const { Capture, getLatest } = snap('capture-35', (d) => ({
+        requests: d.requests,
+        contacts: d.contacts,
+        addRequest: d.addRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN]),
+            loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+            createRequest: () => Promise.reject(new Error('create request boom')),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      const beforeRequests = [...getLatest().requests];
+      const beforeContactTotal = getLatest().contacts[0].totalRequests;
+      let caughtError: unknown = null;
+
+      await act(async () => {
+        try {
+          await getLatest().addRequest({ contactId: SAMPLE_CONTACT_JEAN.id, title: 'X' });
+        } catch (err) {
+          caughtError = err;
+        }
+      });
+
+      expect(caughtError).toBeInstanceOf(Error);
+      expect((caughtError as Error).message).toMatch(/create request boom/);
+      expect(getLatest().requests).toEqual(beforeRequests);
+      expect(getLatest().contacts[0].totalRequests).toBe(beforeContactTotal);
+    });
+
+    it('36. updateRequest remplace la bonne demande', async () => {
+      const updatedRequest: Request = {
+        ...SAMPLE_REQUEST_1,
+        title: 'Titre modifié !!!',
+      };
+      const { Capture, getLatest } = snap('capture-36', (d) => ({
+        requests: d.requests,
+        updateRequest: d.updateRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+            updateRequest: (_id, _input) => Promise.resolve(updatedRequest),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().updateRequest(SAMPLE_REQUEST_1.id, { title: 'Titre modifié !!!' });
+      });
+
+      const after = getLatest().requests;
+      expect(after).toHaveLength(1);
+      expect(after[0]?.id).toBe(SAMPLE_REQUEST_1.id);
+      expect(after[0]?.title).toBe('Titre modifié !!!');
+    });
+
+    it('37. updateRequest absent → aucune insertion', async () => {
+      const repo = buildRepository({
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        updateRequest: () => Promise.resolve({ ...SAMPLE_REQUEST_1, id: 'r-absent', title: 'Should not appear' }),
+      });
+      const { Capture, getLatest } = snap('capture-37', (d) => ({
+        requests: d.requests,
+        updateRequest: d.updateRequest,
+      }));
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      const beforeIds = getLatest().requests.map((r) => r.id);
+      await act(async () => {
+        await getLatest().updateRequest('r-absent-xyz', { title: 'X' });
+      });
+
+      const after = getLatest().requests;
+      expect(after).toHaveLength(1);
+      const afterIds = after.map((r) => r.id);
+      expect(afterIds).toEqual(beforeIds);
+      expect(after.some((r) => r.id === 'r-absent')).toBe(false);
+    });
+
+    it('38. erreur update → state inchangé', async () => {
+      const { Capture, getLatest } = snap('capture-38', (d) => ({
+        requests: d.requests,
+        updateRequest: d.updateRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+            updateRequest: () => Promise.reject(new Error('update request boom')),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      const before = [...getLatest().requests];
+      let caughtError: unknown = null;
+
+      await act(async () => {
+        try {
+          await getLatest().updateRequest(SAMPLE_REQUEST_1.id, { title: 'X' });
+        } catch (err) {
+          caughtError = err;
+        }
+      });
+
+      expect(caughtError).toBeInstanceOf(Error);
+      expect((caughtError as Error).message).toMatch(/update request boom/);
+      expect(getLatest().requests).toEqual(before);
+    });
+
+    it('39. archiveRequest marque archived=true', async () => {
+      const { Capture, getLatest } = snap('capture-39', (d) => ({
+        requests: d.requests,
+        archiveRequest: d.archiveRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+            archiveRequest: () => Promise.resolve(),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().archiveRequest(SAMPLE_REQUEST_1.id);
+      });
+
+      const after = getLatest().requests;
+      const target = after.find((r) => r.id === SAMPLE_REQUEST_1.id);
+      expect(target).toBeDefined();
+      expect(target?.archived).toBe(true);
+    });
+
+    it('40. archive clear activeRequestId', async () => {
+      const contactAvecActive: Contact = {
+        ...SAMPLE_CONTACT_JEAN,
+        id: 'c-1',
+        activeRequestId: SAMPLE_REQUEST_1.id,
+      };
+      const { Capture, getLatest } = snap('capture-40', (d) => ({
+        contacts: d.contacts,
+        archiveRequest: d.archiveRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadContacts: () => Promise.resolve([contactAvecActive]),
+            archiveRequest: () => Promise.resolve(),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      expect(getLatest().contacts[0]?.activeRequestId).toBe(SAMPLE_REQUEST_1.id);
+
+      await act(async () => {
+        await getLatest().archiveRequest(SAMPLE_REQUEST_1.id);
+      });
+
+      const after = getLatest().contacts[0];
+      expect(after.activeRequestId).toBeUndefined();
+    });
+
+    it('41. archive totalRequests inchangé', async () => {
+      const contactAvecRequests: Contact = {
+        ...SAMPLE_CONTACT_JEAN,
+        id: 'c-1',
+        totalRequests: 5,
+      };
+      const { Capture, getLatest } = snap('capture-41', (d) => ({
+        contacts: d.contacts,
+        archiveRequest: d.archiveRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadContacts: () => Promise.resolve([contactAvecRequests]),
+            archiveRequest: () => Promise.resolve(),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      const before = getLatest().contacts[0].totalRequests;
+      await act(async () => {
+        await getLatest().archiveRequest(SAMPLE_REQUEST_1.id);
+      });
+
+      const after = getLatest().contacts[0].totalRequests;
+      expect(after).toBe(before);
+    });
+
+    it('42. erreur archive → state inchangé', async () => {
+      const contactAvecActive: Contact = {
+        ...SAMPLE_CONTACT_JEAN,
+        id: 'c-1',
+        activeRequestId: SAMPLE_REQUEST_1.id,
+      };
+      const { Capture, getLatest } = snap('capture-42', (d) => ({
+        requests: d.requests,
+        contacts: d.contacts,
+        archiveRequest: d.archiveRequest,
+      }));
+
+      render(
+        <AppStoreProvider
+          repository={buildRepository({
+            loadContacts: () => Promise.resolve([contactAvecActive]),
+            loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+            archiveRequest: () => Promise.reject(new Error('archive request boom')),
+          })}
+        >
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      const beforeRequest = { ...getLatest().requests[0] };
+      const beforeActiveId = getLatest().contacts[0].activeRequestId;
+      let caughtError: unknown = null;
+
+      await act(async () => {
+        try {
+          await getLatest().archiveRequest(SAMPLE_REQUEST_1.id);
+        } catch (err) {
+          caughtError = err;
+        }
+      });
+
+      expect(caughtError).toBeInstanceOf(Error);
+      expect((caughtError as Error).message).toMatch(/archive request boom/);
+      expect(getLatest().requests[0]?.archived).toBe(beforeRequest.archived);
+      expect(getLatest().contacts[0].activeRequestId).toBe(beforeActiveId);
     });
   });
 });

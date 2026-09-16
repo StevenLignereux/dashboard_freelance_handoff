@@ -10,7 +10,7 @@ import type {
   Request,
 } from '../../types';
 import { seedContacts, seedRequests, seedMissions, seedExchanges } from '../../data/seedData';
-import type { CreateContactInput, IRepository } from '../../data/repositories/interface';
+import type { CreateContactInput, CreateRequestInput, IRepository, UpdateRequestInput } from '../../data/repositories/interface';
 
 function buildRepository(overrides?: Partial<IRepository>): IRepository {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -33,6 +33,9 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
       return Promise.resolve(c ?? sc[0]);
     },
     archiveContact: () => Promise.resolve(),
+    createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
+    updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
+    archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
     ...overrides,
   };
 }

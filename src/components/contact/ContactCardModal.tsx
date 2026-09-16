@@ -20,6 +20,9 @@ interface ContactCardModalProps {
   onClose: () => void;
   onEdit?: (contactId: string) => void;
   onArchive?: (contactId: string) => void;
+  onCreateRequest?: (contactId: string) => void;
+  onEditRequest?: (requestId: string) => void;
+  onArchiveRequest?: (requestId: string) => void;
 }
 
 const exchangeMeta: Record<string, { label: string; color: string }> = {
@@ -49,7 +52,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onEdit, onArchive }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -261,14 +264,40 @@ export function ContactCardModal({ contactId, requestId, onClose, onEdit, onArch
               <div className="p-4 sm:p-6 lg:p-8 space-y-6">
                 <ModalHeader contact={contact} onEdit={onEdit} onArchive={onArchive} />
                 <ContactIdentity contact={contact} />
-                {activeRequest && (
+                {activeRequest ? (
                   <RequestBlock
                     request={{
                       ...activeRequest,
                       nextAction: nextActionHydrated,
                     }}
                     isActive={!requestId}
+                    onEditRequest={onEditRequest}
+                    onArchiveRequest={onArchiveRequest}
                   />
+                ) : (
+                  !contact.archived && (
+                    <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">
+                        Demande
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        Aucune demande active pour ce contact.
+                      </p>
+                      {onCreateRequest && (
+                        <button
+                          type="button"
+                          onClick={() => { onCreateRequest(contact.id); }}
+                          className="btn-primary !py-2 !px-3.5 inline-flex items-center gap-2 text-sm"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                          Créer une demande
+                        </button>
+                      )}
+                    </section>
+                  )
                 )}
                 <StatsBlock contact={contact} />
                 <MissionsBlock missions={contactMissions} />
@@ -387,7 +416,7 @@ function ContactIdentity({ contact }: { contact: Contact }) {
   );
 }
 
-function RequestBlock({ request, isActive = true }: { request: Request; isActive?: boolean }) {
+function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void }) {
   return (
     <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -415,6 +444,37 @@ function RequestBlock({ request, isActive = true }: { request: Request; isActive
       <div className="text-[11px] text-slate-500 flex items-center gap-3 pt-1">
         <span>Créée le {formatDueDate(request.createdAt).dateLabel}</span>
       </div>
+      {!request.archived && (onEditRequest ?? onArchiveRequest) && (
+        <div className="flex items-center gap-2 pt-2 mt-3 border-t border-white/5">
+          {onEditRequest && (
+            <button
+              type="button"
+              onClick={() => { onEditRequest(request.id); }}
+              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-white/10"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+              Modifier
+            </button>
+          )}
+          {onArchiveRequest && (
+            <button
+              type="button"
+              onClick={() => { onArchiveRequest(request.id); }}
+              className="btn-ghost !py-1.5 !px-2.5 text-xs text-slate-300 hover:text-brand-coral hover:bg-brand-coral/10 inline-flex items-center gap-1.5"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <rect x="3" y="4" width="18" height="5" rx="1" />
+                <path d="M5 4v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4" />
+                <line x1="10" y1="9" x2="14" y2="9" />
+              </svg>
+              Archiver
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }

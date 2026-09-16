@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { useCallback, useState } from 'react';
 import type React from 'react';
@@ -9,6 +10,7 @@ import { AuthGate } from './App';
 import type { OpenContactPayload } from './App';
 import { ContactCardModal } from './components/contact/ContactCardModal';
 import { ArchiveConfirmation } from './components/contact/ArchiveConfirmation';
+import { RequestArchiveConfirmation } from './components/request/RequestArchiveConfirmation';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
 import type { IRepository, CreateContactInput } from './data/repositories/interface';
 import {
@@ -185,6 +187,33 @@ function buildMiniRepo(overrides?: Partial<IRepository>): IRepository {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   const se = seedExchanges as unknown as Exchange[];
 
+  const createRequestSpy = vi.fn().mockImplementation(
+    overrides?.createRequest ??
+      ((input: { contactId: string; title: string; description?: string | null }) => {
+        const created: Request = {
+          id: `r-new-${Date.now()}`,
+          contactId: input.contactId,
+          title: input.title,
+          description: input.description ?? undefined,
+          status: 'nouveau',
+          createdAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
+          archived: false,
+        };
+        return Promise.resolve(created);
+      })
+  );
+  const updateRequestSpy = vi.fn().mockImplementation(
+    overrides?.updateRequest ??
+      ((id: string) => {
+        const r = sr.find((x) => x.id === id);
+        return Promise.resolve(r ?? sr[0]);
+      })
+  );
+  const archiveRequestSpy = vi.fn().mockImplementation(
+    overrides?.archiveRequest ?? (() => Promise.resolve())
+  );
+
   return {
     loadContacts: () => Promise.resolve(sc),
     loadRequests: () => Promise.resolve(sr),
@@ -197,6 +226,9 @@ function buildMiniRepo(overrides?: Partial<IRepository>): IRepository {
     },
     archiveContact:
       overrides?.archiveContact ?? (() => Promise.resolve()),
+    createRequest: createRequestSpy,
+    updateRequest: updateRequestSpy,
+    archiveRequest: archiveRequestSpy,
     ...overrides,
   };
 }
@@ -363,5 +395,300 @@ describe('App / Router — flux modales archivage', () => {
     const cardReopened = screen.getByRole('dialog', { name: /Jean Dupont/i });
     expect(cardReopened).toBeInTheDocument();
     expect(cardReopened).toHaveAttribute('aria-modal', 'true');
+  });
+});
+
+type RequestRepositorySpy = IRepository & {
+  archiveRequestSpy: ReturnType<typeof vi.fn>;
+};
+
+function buildRequestRepo(overrides?: Partial<IRepository>): RequestRepositorySpy {
+  const base = buildMiniRepo(overrides) as RequestRepositorySpy;
+  const archiveRequestSpy = vi.fn().mockImplementation(
+    overrides?.archiveRequest ?? (() => Promise.resolve())
+  );
+  return {
+    ...base,
+    ...overrides,
+    archiveRequest: archiveRequestSpy,
+    archiveRequestSpy,
+  };
+}
+
+function RequestModalFlowScenario({
+  startWithOpen = true,
+  initialRequestId,
+}: {
+  startWithOpen?: boolean;
+  initialRequestId?: string;
+}) {
+  useAppStore();
+  const [activeContact, setActiveContact] = useState<OpenContactPayload | null>(
+    startWithOpen
+      ? { contactId: 'c-jean-dupont', requestId: initialRequestId }
+      : null
+  );
+  const [archivingRequestId, setArchivingRequestId] = useState<string | null>(null);
+  const [preArchiveContact, setPreArchiveContact] = useState<OpenContactPayload | null>(null);
+
+  const handleArchiveRequest = useCallback(
+    (requestId: string) => {
+      setPreArchiveContact(
+        activeContact ?? { contactId: 'c-jean-dupont', requestId }
+      );
+      setActiveContact(null);
+      setArchivingRequestId(requestId);
+    },
+    [activeContact]
+  );
+  const handleCancelArchiveRequest = useCallback(() => {
+    const toReopen = preArchiveContact;
+    setArchivingRequestId(null);
+    setPreArchiveContact(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preArchiveContact]);
+  const handleArchivedRequest = useCallback(() => {
+    setArchivingRequestId(null);
+    setActiveContact(null);
+    setPreArchiveContact(null);
+  }, []);
+
+  return (
+    <>
+      <ContactCardModal
+        contactId={activeContact?.contactId ?? null}
+        requestId={activeContact?.requestId}
+        onClose={() => { setActiveContact(null); }}
+        onEdit={() => undefined}
+        onArchive={() => undefined}
+        onArchiveRequest={handleArchiveRequest}
+      />
+      <RequestArchiveConfirmation
+        requestId={archivingRequestId}
+        onClose={handleCancelArchiveRequest}
+        onSuccess={handleArchivedRequest}
+      />
+    </>
+  );
+}
+
+describe('App / Router — flux modales request', () => {
+  it('53. Annuler ne déclenche pas archiveRequest (click Annuler in confirmation, repository.archiveRequestSpy not called)', async () => {
+    const repo = buildRequestRepo();
+    render(
+      <AppStoreProvider repository={repo}>
+        <RequestModalFlowScenario initialRequestId="r-jean-site" />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: /Jean Dupont/i })
+      ).toBeInTheDocument();
+    });
+
+    const archiveButtons = screen.getAllByText('Archiver', { selector: 'button' });
+    const requestArchiveBtn = archiveButtons.find(
+      (btn) => !btn.getAttribute('aria-label')?.includes('Jean Dupont')
+    );
+    expect(requestArchiveBtn).toBeInTheDocument();
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(requestArchiveBtn!);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    const cancelBtn = screen.getByText('Annuler', { selector: 'button' });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    expect(repo.archiveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  it('54. Confirmer appelle archiveRequest (click Archiver in confirmation, spy called with request.id)', async () => {
+    const repo = buildRequestRepo();
+    render(
+      <AppStoreProvider repository={repo}>
+        <RequestModalFlowScenario initialRequestId="r-jean-site" />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: /Jean Dupont/i })
+      ).toBeInTheDocument();
+    });
+
+    const archiveButtons = screen.getAllByText('Archiver', { selector: 'button' });
+    const requestArchiveBtn = archiveButtons.find(
+      (btn) => !btn.getAttribute('aria-label')?.includes('Jean Dupont')
+    );
+    expect(requestArchiveBtn).toBeInTheDocument();
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(requestArchiveBtn!);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    const confirmBtns = screen.getAllByText('Archiver', { selector: 'button' });
+    const confirmBtn = confirmBtns[confirmBtns.length - 1];
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    await waitFor(() => {
+      expect(repo.archiveRequestSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(repo.archiveRequestSpy).toHaveBeenCalledWith('r-jean-site');
+  });
+
+  it('55. erreur archive affichée role="alert" (mock rejects, click confirm → screen.getByRole(\'alert\'))', async () => {
+    const repo = buildRequestRepo({
+      archiveRequest: () => Promise.reject(new Error('archive request failed')),
+    });
+    render(
+      <AppStoreProvider repository={repo}>
+        <RequestModalFlowScenario initialRequestId="r-jean-site" />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: /Jean Dupont/i })
+      ).toBeInTheDocument();
+    });
+
+    const archiveButtons = screen.getAllByText('Archiver', { selector: 'button' });
+    const requestArchiveBtn = archiveButtons.find(
+      (btn) => !btn.getAttribute('aria-label')?.includes('Jean Dupont')
+    );
+    expect(requestArchiveBtn).toBeInTheDocument();
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(requestArchiveBtn!);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    const confirmBtns = screen.getAllByText('Archiver', { selector: 'button' });
+    const confirmBtn = confirmBtns[confirmBtns.length - 1];
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert).toBeInTheDocument();
+      expect(alert.textContent).toMatch(/archive request failed/);
+    });
+  });
+
+  it('57. Router aucune superposition ContactCard / Request modal simultanément (click button flow then assert count <= 1)', async () => {
+    const repo = buildRequestRepo();
+    render(
+      <AppStoreProvider repository={repo}>
+        <RequestModalFlowScenario initialRequestId="r-jean-site" />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: /Jean Dupont/i })
+      ).toBeInTheDocument();
+    });
+
+    const archiveButtons = screen.getAllByText('Archiver', { selector: 'button' });
+    const requestArchiveBtn = archiveButtons.find(
+      (btn) => !btn.getAttribute('aria-label')?.includes('Jean Dupont')
+    );
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(requestArchiveBtn!);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    const allDialogs = screen.getAllByRole('dialog');
+    const interactive = allDialogs.filter((d) => d.getAttribute('aria-modal') === 'true');
+    // Note: role="alertdialog" is subtype of "dialog", already in allDialogs. No double-count!
+    expect(interactive.length).toBeLessThanOrEqual(1);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: /Jean Dupont/i })
+      ).not.toBeInTheDocument();
+    }, { timeout: 1500 });
+  });
+
+  it('58. Annuler edit/archive rouvre fiche avec requestId préservé (click Archiver request → fiche closes, Annuler confirmation → fiche réouverte, requestId === original)', async () => {
+    const ORIGINAL_REQ_ID = 'r-jean-site';
+    const repo = buildRequestRepo();
+    render(
+      <AppStoreProvider repository={repo}>
+        <RequestModalFlowScenario initialRequestId={ORIGINAL_REQ_ID} />
+      </AppStoreProvider>
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: /Jean Dupont/i })
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: /Création site vitrine/i })
+    ).toBeInTheDocument();
+
+    const archiveButtons = screen.getAllByText('Archiver', { selector: 'button' });
+    const requestArchiveBtn = archiveButtons.find(
+      (btn) => !btn.getAttribute('aria-label')?.includes('Jean Dupont')
+    );
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(requestArchiveBtn!);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: /Jean Dupont/i })
+      ).not.toBeInTheDocument();
+    }, { timeout: 1500 });
+
+    const cancelBtn = screen.getByText('Annuler', { selector: 'button' });
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    await waitFor(() => {
+      const cardReopened = screen.getByRole('dialog', { name: /Jean Dupont/i });
+      expect(cardReopened).toBeInTheDocument();
+      expect(cardReopened).toHaveAttribute('aria-modal', 'true');
+    });
+    expect(
+      screen.getByRole('heading', { level: 3, name: /Création site vitrine/i })
+    ).toBeInTheDocument();
   });
 });

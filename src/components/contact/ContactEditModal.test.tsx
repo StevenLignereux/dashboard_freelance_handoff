@@ -10,7 +10,7 @@ import type {
   Request,
 } from '../../types';
 import { seedContacts, seedRequests, seedMissions, seedExchanges } from '../../data/seedData';
-import type { CreateContactInput, IRepository, UpdateContactInput } from '../../data/repositories/interface';
+import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../../data/repositories/interface';
 
 type RepositorySpy = IRepository & {
   updateContactSpy: Mock<(contactId: string, input: UpdateContactInput) => Promise<Contact>>;
@@ -45,6 +45,9 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
       Promise.reject(new Error('not implemented')),
     archiveContact:
       overrides?.archiveContact ?? (() => Promise.resolve()),
+    createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
+    updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
+    archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
     ...overrides,
     updateContact: updateContactSpy,
     updateContactSpy,

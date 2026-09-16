@@ -46,6 +46,17 @@ export interface UpdateContactInput {
   relationship?: RelationshipType;
 }
 
+export interface CreateRequestInput {
+  contactId: string;
+  title: string;
+  description?: string | null;
+}
+
+export interface UpdateRequestInput {
+  title?: string;
+  description?: string | null;
+}
+
 export interface IRepository {
   /**
    * Charge tous les contacts avec leurs données dérivées.
@@ -85,4 +96,8 @@ export interface IRepository {
    * retourne une erreur (via Supabase).
    */
   archiveContact(contactId: string): Promise<void>;
+
+  createRequest(input: CreateRequestInput): Promise<Request>;
+  updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request>;
+  archiveRequest(requestId: string): Promise<void>;
 }

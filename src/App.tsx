@@ -10,6 +10,9 @@ import { AppStoreProvider, useAppStore } from './store/AppStore';
 import { ContactCreateModal } from './components/contact/ContactCreateModal';
 import { ContactEditModal } from './components/contact/ContactEditModal';
 import { ArchiveConfirmation } from './components/contact/ArchiveConfirmation';
+import { RequestCreateModal } from './components/request/RequestCreateModal';
+import { RequestEditModal } from './components/request/RequestEditModal';
+import { RequestArchiveConfirmation } from './components/request/RequestArchiveConfirmation';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginPage } from './pages/LoginPage';
 
@@ -99,6 +102,10 @@ function Router() {
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [archivingContactId, setArchivingContactId] = useState<string | null>(null);
   const [preArchiveContact, setPreArchiveContact] = useState<OpenContactPayload | null>(null);
+  const [creatingRequestForContactId, setCreatingRequestForContactId] = useState<string | null>(null);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [archivingRequestId, setArchivingRequestId] = useState<string | null>(null);
+  const [preRequestPayload, setPreRequestPayload] = useState<OpenContactPayload | null>(null);
 
   const editingContact = editingContactId
     ? store.data.contacts.find((c) => c.id === editingContactId) ?? null
@@ -161,6 +168,64 @@ function Router() {
     setPreArchiveContact(null);
   }, []);
 
+  const handleCreateRequest = useCallback((contactId: string) => {
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId };
+    setPreRequestPayload(payload);
+    setActiveContact(null);
+    setCreatingRequestForContactId(contactId);
+  }, [activeContact]);
+
+  const handleCancelCreateRequest = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setCreatingRequestForContactId(null);
+    setPreRequestPayload(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preRequestPayload]);
+
+  const handleEditRequest = useCallback((requestId: string) => {
+    const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
+    if (!contactId) return;
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
+    setPreRequestPayload(payload);
+    setActiveContact(null);
+    setEditingRequestId(requestId);
+  }, [store.data.requests, activeContact]);
+
+  const handleCancelEditRequest = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setEditingRequestId(null);
+    setPreRequestPayload(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preRequestPayload]);
+
+  const handleArchiveRequest = useCallback((requestId: string) => {
+    const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
+    if (!contactId) return;
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
+    setPreRequestPayload(payload);
+    setActiveContact(null);
+    setArchivingRequestId(requestId);
+  }, [store.data.requests, activeContact]);
+
+  const handleCancelArchiveRequest = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setArchivingRequestId(null);
+    setPreRequestPayload(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preRequestPayload]);
+
+  const handleArchivedRequest = useCallback(() => {
+    setArchivingRequestId(null);
+    setActiveContact(null);
+    setPreRequestPayload(null);
+  }, []);
+
   return (
     <AppShell>
       {store.data.loading ? (
@@ -198,6 +263,9 @@ function Router() {
             onClose={handleCloseContact}
             onEdit={handleEdit}
             onArchive={handleArchive}
+            onCreateRequest={handleCreateRequest}
+            onEditRequest={handleEditRequest}
+            onArchiveRequest={handleArchiveRequest}
           />
           <ContactCreateModal
             open={createOpen}
@@ -211,6 +279,19 @@ function Router() {
             contact={archivingContact}
             onCancel={handleCancelArchive}
             onArchived={handleArchived}
+          />
+          <RequestCreateModal
+            contact={creatingRequestForContactId ? store.data.contacts.find((c) => c.id === creatingRequestForContactId) ?? null : null}
+            onClose={handleCancelCreateRequest}
+          />
+          <RequestEditModal
+            requestId={editingRequestId}
+            onClose={handleCancelEditRequest}
+          />
+          <RequestArchiveConfirmation
+            requestId={archivingRequestId}
+            onClose={handleCancelArchiveRequest}
+            onSuccess={handleArchivedRequest}
           />
         </>
       )}

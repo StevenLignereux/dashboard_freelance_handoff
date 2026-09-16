@@ -7,7 +7,7 @@
  */
 
 import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, IRepository, UpdateContactInput } from './interface';
+import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
 import {
   seedContacts,
   seedRequests,
@@ -119,6 +119,84 @@ export class SeedRepository implements IRepository {
       ...prev,
       archived: true,
     };
+    return Promise.resolve();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async createRequest(input: CreateRequestInput): Promise<Request> {
+    const contactId = input.contactId;
+    const contact = this.contacts.find((c) => c.id === contactId);
+    if (!contact) {
+      throw new Error(`Cannot create request: contact id=${contactId} not found.`);
+    }
+    if (contact.archived) {
+      throw new Error(`Cannot create request: contact id=${contactId} is archived.`);
+    }
+    const activeReq = this.requests.find(
+      (r) => r.contactId === contactId && !r.archived && r.status !== 'sans_suite'
+    );
+    if (activeReq) {
+      throw new Error(`Cannot create request: contact id=${contactId} already has an active request id=${activeReq.id}. Archive it first.`);
+    }
+    const now = new Date().toISOString();
+    const newReq: Request = {
+      id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      contactId: input.contactId,
+      title: input.title,
+      description: input.description ?? undefined,
+      status: 'nouveau',
+      createdAt: now,
+      lastActivityAt: now,
+      nextAction: undefined,
+      archived: false,
+    };
+    this.requests.push(newReq);
+    const contactIdx = this.contacts.findIndex((c) => c.id === contactId);
+    if (contactIdx !== -1) {
+      const existingContact = this.contacts[contactIdx];
+      this.contacts[contactIdx] = {
+        ...existingContact,
+        totalRequests: existingContact.totalRequests + 1,
+        activeRequestId: newReq.id,
+      };
+    }
+    return newReq;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request> {
+    const idx = this.requests.findIndex((r) => r.id === requestId);
+    if (idx === -1) {
+      throw new Error(`Cannot update request: id=${requestId} not found.`);
+    }
+    const previous = this.requests[idx];
+    const updated: Request = {
+      ...previous,
+      title: input.title ?? previous.title,
+      description: input.description === undefined ? previous.description : (input.description ?? undefined),
+    };
+    this.requests[idx] = updated;
+    return updated;
+  }
+
+  archiveRequest(requestId: string): Promise<void> {
+    const idx = this.requests.findIndex((r) => r.id === requestId);
+    if (idx === -1) {
+      return Promise.reject(new Error(`Cannot archive request: id=${requestId} not found.`));
+    }
+    const prev = this.requests[idx];
+    const archivedVersion = { ...prev, archived: true };
+    this.requests[idx] = archivedVersion;
+    const contactIdx = this.contacts.findIndex((c) => c.id === prev.contactId);
+    if (contactIdx !== -1) {
+      const contact = this.contacts[contactIdx];
+      if (contact.activeRequestId === requestId) {
+        this.contacts[contactIdx] = {
+          ...contact,
+          activeRequestId: undefined,
+        };
+      }
+    }
     return Promise.resolve();
   }
 }

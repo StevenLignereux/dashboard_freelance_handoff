@@ -17,7 +17,7 @@ import {
 } from 'react';
 import type { Contact, Exchange, Mission, NavItemKey, Request } from '../types';
 import { clock } from '../config/clock';
-import type { CreateContactInput, IRepository, UpdateContactInput } from '../data/repositories/interface';
+import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../data/repositories/interface';
 import { createRepository } from '../data/repositories/factory';
 
 interface AppStoreDataSlice {
@@ -31,6 +31,9 @@ interface AppStoreDataSlice {
   addContact: (input: CreateContactInput) => Promise<Contact>;
   updateContact: (contactId: string, input: UpdateContactInput) => Promise<Contact>;
   archiveContact: (contactId: string) => Promise<void>;
+  addRequest: (input: CreateRequestInput) => Promise<Request>;
+  updateRequest: (requestId: string, input: UpdateRequestInput) => Promise<Request>;
+  archiveRequest: (requestId: string) => Promise<void>;
 }
 
 interface AppStoreValue {
@@ -206,6 +209,51 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
     []
   );
 
+  const addRequest = useCallback<AppStoreDataSlice['addRequest']>(async (input) => {
+    const repo = repositoryRef.current;
+    const created = await repo.createRequest(input);
+    setRequests((prev) => {
+      if (prev.some((r) => r.id === created.id)) return prev;
+      return [created, ...prev];
+    });
+    setContacts((prev) => {
+      const idx = prev.findIndex((c) => c.id === created.contactId);
+      if (idx === -1) return prev;
+      const c = prev[idx];
+      const next = prev.slice();
+      next[idx] = { ...c, totalRequests: c.totalRequests + 1, activeRequestId: created.id };
+      return next;
+    });
+    return created;
+  }, []);
+
+  const updateRequest = useCallback<AppStoreDataSlice['updateRequest']>(async (requestId, input) => {
+    const repo = repositoryRef.current;
+    const updated = await repo.updateRequest(requestId, input);
+    setRequests((prev) => {
+      const idx = prev.findIndex((r) => r.id === requestId);
+      if (idx === -1) return prev;
+      const next = prev.slice();
+      next[idx] = updated;
+      return next;
+    });
+    return updated;
+  }, []);
+
+  const archiveRequest = useCallback<AppStoreDataSlice['archiveRequest']>(async (requestId) => {
+    const repo = repositoryRef.current;
+    await repo.archiveRequest(requestId);
+    setRequests((prev) => {
+      return prev.map((r) => (r.id === requestId ? { ...r, archived: true } : r));
+    });
+    setContacts((prev) => {
+      return prev.map((c) => {
+        if (c.activeRequestId !== requestId) return c;
+        return { ...c, activeRequestId: undefined };
+      });
+    });
+  }, []);
+
   const data: AppStoreDataSlice = useMemo(
     () => ({
       contacts,
@@ -218,8 +266,11 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       addContact,
       updateContact,
       archiveContact,
+      addRequest,
+      updateRequest,
+      archiveRequest,
     }),
-    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact]
+    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, archiveRequest]
   );
 
   const value: AppStoreValue = useMemo(
