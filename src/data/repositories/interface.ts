@@ -5,6 +5,7 @@
  */
 
 import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType } from '../../types';
+import type { NextAction } from '../../types';
 
 /**
  * Contrat d'entrée d'un nouveau contact tel que fourni par le formulaire.
@@ -64,12 +65,6 @@ export interface CreateRequestActionInput {
   dueDate: string;
 }
 
-export interface UpdateRequestActionInput {
-  type?: NextActionType;  
-  label?: string;
-  dueDate?: string;
-}
-
 export interface IRepository {
   /**
    * Charge tous les contacts avec leurs données dérivées.
@@ -99,7 +94,7 @@ export interface IRepository {
   /**
    * Crée une nouvelle action pour une demande existante.
    */
-  createRequestAction(input: CreateRequestActionInput): Promise<NonNullable<Request['actions']>[number]>;
+  createRequestAction(input: CreateRequestActionInput): Promise<NextAction>;
 
 
   /**

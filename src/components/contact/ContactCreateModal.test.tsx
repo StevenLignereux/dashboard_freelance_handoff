@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { useCallback } from 'react';
-import type { Contact, Request } from '../../types';
+import type { Contact, Request, NextAction } from '../../types';
 import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateRequestInput } from '../../data/repositories/interface';
 import { AppStoreProvider } from '../../store/AppStore';
 import { ContactCreateModal } from './ContactCreateModal';
@@ -16,7 +16,7 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
       Promise.reject(new Error('not implemented')),
     updateContact: (id, _input) => Promise.reject(new Error(`updateContact ${id} not implemented`)),
     archiveContact: (_id) => Promise.reject(new Error('archiveContact not implemented')),
-    createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NonNullable<Request['actions']>[number]>>(),
+    createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NextAction>>(),
     createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
     updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),

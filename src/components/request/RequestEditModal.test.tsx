@@ -8,6 +8,7 @@ import type {
   Contact,
   Exchange,
   Mission,
+  NextAction,
   Request,
 } from '../../types';
 import { seedContacts, seedRequests, seedMissions, seedExchanges } from '../../data/seedData';
@@ -53,7 +54,7 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     },
     archiveContact:
       overrides?.archiveContact ?? (() => Promise.resolve()),
-    createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NonNullable<Request['actions']>[number]>>(),
+    createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NextAction>>(),
     createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
     ...overrides,

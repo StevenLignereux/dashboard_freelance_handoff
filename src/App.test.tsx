@@ -4,7 +4,7 @@ import { render, screen, waitFor, fireEvent, act, within } from '@testing-librar
 import { useCallback, useState } from 'react';
 import type React from 'react';
 import type { Session, User, AuthError } from '@supabase/supabase-js';
-import type { Contact, Exchange, Mission, Request } from './types';
+import type { Contact, Exchange, Mission, NextAction, Request } from './types';
 import { AuthProvider, type AuthClientLike } from './auth/AuthProvider';
 import { AuthGate, Router } from './App';
 import type { OpenContactPayload } from './App';
@@ -224,7 +224,7 @@ function buildMiniRepo(overrides?: Partial<IRepository>): IRepository {
           label: input.label,
           dueDate: input.dueDate,
           createdAt: new Date().toISOString(),
-        } as NonNullable<Request['actions']>[number];
+        } as NextAction;
         return Promise.resolve(created);
       })
   );  

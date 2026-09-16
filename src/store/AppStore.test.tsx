@@ -2,7 +2,7 @@ import { describe, it, expect, vi, type Mock } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { useRef } from 'react';
-import type { Contact, Exchange, Mission, Request } from '../types';
+import type { Contact, Exchange, Mission, NextAction, Request } from '../types';
 import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../data/repositories/interface';
 import { AppStoreProvider, useAppStore, type AppStoreData } from './AppStore';
 import * as factoryModule from '../data/repositories/factory';
@@ -86,7 +86,7 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     );
 
   const createRequestActionSpy = vi
-    .fn<(input: CreateRequestActionInput) => Promise<NonNullable<Request['actions']>[number]>>()
+    .fn<(input: CreateRequestActionInput) => Promise<NextAction>>()
     .mockImplementation(
       overrides?.createRequestAction ??
         (() => Promise.reject(new Error('not implemented')))
