@@ -180,47 +180,39 @@ export class SeedRepository implements IRepository {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async createRequestAction(
-  input: CreateRequestActionInput
-): Promise<NextAction> {
-  const requestIndex = this.requests.findIndex(
-    (request) => request.id === input.requestId
-  );
+  async createRequestAction(input: CreateRequestActionInput): Promise<NextAction> {
+    const requestIndex = this.requests.findIndex((request) => request.id === input.requestId);
 
-  if (requestIndex === -1) {
-    throw new Error(
-      `Cannot create request action: request id=${input.requestId} not found.`
-    );
+    if (requestIndex === -1) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} not found.`);
+    }
+
+    const request = this.requests[requestIndex];
+
+    if (request.archived) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} is archived.`);
+    }
+
+    if (request.nextAction) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} already has an open action id=${request.nextAction.id}.`);
+    }
+
+    const action: NextAction = {
+      id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: input.type,
+      label: input.label,
+      dueDate: input.dueDate,
+    };
+
+    this.requests[requestIndex] = {
+      ...request,
+      nextAction: action,
+    };
+
+    return action;
   }
 
-  const request = this.requests[requestIndex];
-
-  if (request.archived) {
-    throw new Error(
-      `Cannot create request action: request id=${input.requestId} is archived.`
-    );
-  }
-
-  if (request.nextAction) {
-    throw new Error(
-      `Cannot create request action: request id=${input.requestId} already has an open action id=${request.nextAction.id}.`
-    );
-  }
-
-  const action: NextAction = {
-    id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    type: input.type,
-    label: input.label,
-    dueDate: input.dueDate,
-  };
-
-  this.requests[requestIndex] = {
-    ...request,
-    nextAction: action,
-  };
-
-  return action;
-}
+  
 
   archiveRequest(requestId: string): Promise<void> {
     const idx = this.requests.findIndex((r) => r.id === requestId);
