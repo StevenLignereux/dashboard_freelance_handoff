@@ -17,15 +17,15 @@ vi.mock('../../lib/supabase/client', () => ({
 
 describe('Repository Factory', () => {
   describe('DATA_SOURCE', () => {
-    it('vaut seed par défaut (configuration explicite, pas auto-détection)', () => {
-      expect(DATA_SOURCE).toBe('seed');
+    it('vaut supabase par défaut (configuration explicite, pas auto-détection)', () => {
+      expect(DATA_SOURCE).toBe('supabase');
     });
   });
 
   describe('createRepository', () => {
-    it('retourne SeedRepository sans argument', () => {
+    it('retourne SupabaseRepository sans argument', () => {
       const repo = createRepository();
-      expect(repo).toBeInstanceOf(SeedRepository);
+      expect(repo).toBeInstanceOf(SupabaseRepository);
     });
 
     it('accepte seed en paramètre explicite', () => {
@@ -72,6 +72,17 @@ describe('Repository Factory', () => {
 
       await expect(repo.loadContacts()).rejects.toThrow('Network error');
 
+      expect(repo).toBeInstanceOf(SupabaseRepository);
+    });
+
+    it('createRepository() default ne retourne jamais SeedRepository même si Supabase indisponible', async () => {
+      const repo = createRepository();
+      expect(repo).toBeInstanceOf(SupabaseRepository);
+
+      mockSupabaseFrom.mockImplementation(() => {
+        throw new Error('Supabase down');
+      });
+      await expect(repo.loadContacts()).rejects.toThrow('Supabase down');
       expect(repo).toBeInstanceOf(SupabaseRepository);
     });
   });
