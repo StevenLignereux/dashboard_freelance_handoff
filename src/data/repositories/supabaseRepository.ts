@@ -8,7 +8,7 @@
  */
 
 import { supabase } from '../../lib/supabase/client';
-import type { Contact, Exchange, Mission, Request, NextAction, NextActionType } from '../../types';
+import type { Contact, Exchange, Mission, NextActionType, Request } from '../../types';
 import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
 import {
   mapContact,
@@ -434,7 +434,7 @@ export class SupabaseRepository implements IRepository {
 
   async createRequestAction(
     input: CreateRequestActionInput,
-  ): Promise<NextAction> {
+  ): Promise<NonNullable<Request['actions']>[number]> {
     this.ensureSupabaseConfigured();
 
     const sb = this.getSupabase();
@@ -480,7 +480,6 @@ export class SupabaseRepository implements IRepository {
       throw new Error(`Failed to create request action for request id=${input.requestId}: no row returned`);
     }
     return mapNextAction(data as DbRequestAction);
-
   }
 
   async archiveRequest(requestId: string): Promise<void> {

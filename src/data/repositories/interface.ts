@@ -4,7 +4,7 @@
  * Contient aussi le contrat d'entrée pour la création d'un contact.
  */
 
-import type { Contact, Exchange, Mission, NextAction, RelationshipType, NextActionType, Request } from '../../types';
+import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType } from '../../types';
 
 /**
  * Contrat d'entrée d'un nouveau contact tel que fourni par le formulaire.
@@ -65,7 +65,7 @@ export interface CreateRequestActionInput {
 }
 
 export interface UpdateRequestActionInput {
-  type?: NextActionType;
+  type?: NextActionType;  
   label?: string;
   dueDate?: string;
 }
@@ -99,7 +99,8 @@ export interface IRepository {
   /**
    * Crée une nouvelle action pour une demande existante.
    */
-  createRequestAction(input: CreateRequestActionInput): Promise<NextAction>;
+  createRequestAction(input: CreateRequestActionInput): Promise<NonNullable<Request['actions']>[number]>;
+
 
   /**
    * Met à jour un contact existant via UpdateContactInput.

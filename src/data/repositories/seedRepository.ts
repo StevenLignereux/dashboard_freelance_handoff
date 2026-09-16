@@ -6,7 +6,7 @@
  * afin d'éviter de muter les exports globaux et de polluer d'autres tests.
  */
 
-import type { Contact, Exchange, Mission, NextAction, Request } from '../../types';
+import type { Contact, Exchange, Mission, Request } from '../../types';
 import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
 import {
   seedContacts,
@@ -180,7 +180,7 @@ export class SeedRepository implements IRepository {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async createRequestAction(input: CreateRequestActionInput): Promise<NextAction> {
+  async createRequestAction(input: CreateRequestActionInput): Promise<NonNullable<Request['actions']>[number]> {
     const requestIndex = this.requests.findIndex((request) => request.id === input.requestId);
 
     if (requestIndex === -1) {
@@ -193,20 +193,23 @@ export class SeedRepository implements IRepository {
       throw new Error(`Cannot create request action: request id=${input.requestId} is archived.`);
     }
 
-    if (request.nextAction) {
-      throw new Error(`Cannot create request action: request id=${input.requestId} already has an open action id=${request.nextAction.id}.`);
+    if (request.actions?.find((action) => action.type === input.type)) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} already has an action of type ${input.type}.`);
     }
 
-    const action: NextAction = {
+    const action = {
       id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type: input.type,
       label: input.label,
       dueDate: input.dueDate,
-    };
+      description: undefined,
+      createdAt: new Date().toISOString(),
+      requestId: input.requestId,
+    } as NonNullable<Request['actions']>[number];
 
     this.requests[requestIndex] = {
       ...request,
-      nextAction: action,
+      actions: [...(request.actions ?? []), action],
     };
 
     return action;

@@ -12,7 +12,7 @@ import { ContactCardModal } from './components/contact/ContactCardModal';
 import { ArchiveConfirmation } from './components/contact/ArchiveConfirmation';
 import { RequestArchiveConfirmation } from './components/request/RequestArchiveConfirmation';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
-import type { IRepository, CreateContactInput, CreateRequestInput, UpdateRequestInput } from './data/repositories/interface';
+import type { IRepository, CreateContactInput, CreateRequestActionInput, CreateRequestInput, UpdateRequestInput } from './data/repositories/interface';
 import {
   seedContacts,
   seedRequests,
@@ -214,6 +214,20 @@ function buildMiniRepo(overrides?: Partial<IRepository>): IRepository {
     overrides?.archiveRequest ?? (() => Promise.resolve())
   );
 
+  const createRequestActionSpy = vi.fn().mockImplementation(
+    overrides?.createRequestAction ??
+      ((input: CreateRequestActionInput) => {
+        const created = {
+          id: `a-new-${Date.now()}`,
+          requestId: input.requestId,
+          type: input.type,
+          label: input.label,
+          dueDate: input.dueDate,
+          createdAt: new Date().toISOString(),
+        } as NonNullable<Request['actions']>[number];
+        return Promise.resolve(created);
+      })
+  );  
   return {
     loadContacts: () => Promise.resolve(sc),
     loadRequests: () => Promise.resolve(sr),
@@ -226,6 +240,7 @@ function buildMiniRepo(overrides?: Partial<IRepository>): IRepository {
     },
     archiveContact:
       overrides?.archiveContact ?? (() => Promise.resolve()),
+    createRequestAction: createRequestActionSpy,
     createRequest: createRequestSpy,
     updateRequest: updateRequestSpy,
     archiveRequest: archiveRequestSpy,

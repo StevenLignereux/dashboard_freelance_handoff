@@ -11,7 +11,7 @@ import type {
   Request,
 } from '../../types';
 import { seedMissions, seedExchanges } from '../../data/seedData';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../../data/repositories/interface';
+import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../../data/repositories/interface';
 
 const CONTACT_NO_ACTIVE_REQUEST: Contact = {
   id: 'c-no-active',
@@ -81,6 +81,7 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
       return Promise.resolve(c ?? TEST_CONTACTS[0]);
     },
     archiveContact: () => Promise.resolve(),
+    createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NonNullable<Request['actions']>[number]>>(),
     createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
     updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),

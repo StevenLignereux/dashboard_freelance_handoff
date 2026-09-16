@@ -64,6 +64,7 @@ export interface Request {
   id: string;
   contactId: string;
   title: string;
+  actions?: NextAction[];
   description?: string;
   status: RequestStatus;
   createdAt: string;

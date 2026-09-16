@@ -8,7 +8,7 @@ import {
   type AuthClientLike,
 } from '../../auth/AuthProvider';
 import { AppStoreProvider } from '../../store/AppStore';
-import type { IRepository, CreateContactInput, CreateRequestInput, UpdateRequestInput } from '../../data/repositories/interface';
+import type { IRepository, CreateContactInput, CreateRequestActionInput, CreateRequestInput, UpdateRequestInput } from '../../data/repositories/interface';
 import type { Contact, Exchange, Mission, Request } from '../../types';
 import { TopBar } from './TopBar';
 
@@ -127,6 +127,7 @@ const NOOP_REPO: IRepository = {
   createContact: async (_input: CreateContactInput) => ({ ...EMPTY_CONTACT }),
   updateContact: async (id, _input) => ({ ...EMPTY_CONTACT, id }),
   archiveContact: (_id) => Promise.resolve(),
+  createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NonNullable<Request['actions']>[number]>>(),
   createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
   updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
   archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
