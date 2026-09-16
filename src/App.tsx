@@ -8,6 +8,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ContactCardModal } from './components/contact/ContactCardModal';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
 import { ContactCreateModal } from './components/contact/ContactCreateModal';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { LoginPage } from './pages/LoginPage';
 
 export interface OpenContactPayload {
   contactId: string;
@@ -70,6 +72,20 @@ function DataErrorFallback({ message, onRetry }: DataErrorFallbackProps) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AuthLoadingFallback() {
+  return (
+    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-3 px-4 text-slate-300">
+      <div
+        className="w-9 h-9 rounded-full border-2 border-brand-violet/40 border-t-brand-violet animate-spin"
+        aria-hidden="true"
+      />
+      <p role="status" aria-live="polite" className="text-sm">
+        Chargement de votre session…
+      </p>
     </div>
   );
 }
@@ -145,10 +161,32 @@ function Router() {
   );
 }
 
+/**
+ * AuthGate : orchestre le flux d'authentification.
+ * AppStoreProvider n'est monté QUE si l'utilisateur est authentifié (session présente).
+ * LoginPage est rendue en l'absence de session.
+ */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const auth = useAuth();
+  if (auth.loading) {
+    return <AuthLoadingFallback />;
+  }
+  if (!auth.session) {
+    return <LoginPage />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
-    <AppStoreProvider>
-      <Router />
-    </AppStoreProvider>
+    <AuthProvider>
+      <AuthGate>
+        <AppStoreProvider>
+          <Router />
+        </AppStoreProvider>
+      </AuthGate>
+    </AuthProvider>
   );
 }
+
+export { AuthGate, Router };

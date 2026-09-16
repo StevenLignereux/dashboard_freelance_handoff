@@ -44,3 +44,23 @@ function buildClient(): SupabaseClient<Database> | null {
  * Utiliser `isSupabaseConfigured` avant tout accès.
  */
 export const supabase: SupabaseClient<Database> | null = buildClient();
+
+/**
+ * Retourne le client Supabase ou LÈVE une Error explicite si la configuration
+ * (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY) est absente ou invalide.
+ *
+ * Utilisé par les modules (Auth, SupabaseRepository) qui EXIGENT Supabase.
+ * Pas de fallback silencieux : l'erreur est signalée clairement à l'appelant.
+ */
+export function getSupabaseOrThrow(): SupabaseClient<Database> {
+  if (!supabase) {
+    throw new Error(
+      [
+        'Supabase n’est pas configuré.',
+        'Vérifiez les variables d’environnement VITE_SUPABASE_URL et',
+        'VITE_SUPABASE_PUBLISHABLE_KEY dans votre fichier .env.local.',
+      ].join(' ')
+    );
+  }
+  return supabase;
+}
