@@ -62,7 +62,14 @@ interface AppStoreProviderProps {
 const AppStoreContext = createContext<AppStoreValue | null>(null);
 
 export function AppStoreProvider({ children, repository }: AppStoreProviderProps) {
-  const repositoryRef = useRef<IRepository>(repository ?? createRepository());
+  // Lazy initialization : createRepository() n'est évalué QU'UNE SEULE FOIS
+  // (premier appel du useState lazy initializer), pas à chaque render.
+  const [repositoryInstance] = useState<IRepository>(() => {
+    return repository ?? createRepository();
+  });
+  const repositoryRef = useRef<IRepository>(repositoryInstance);
+  repositoryRef.current = repositoryInstance;
+
   const mountedRef = useRef<boolean>(false);
 
   const [active, setActive] = useState<NavItemKey>('dashboard');

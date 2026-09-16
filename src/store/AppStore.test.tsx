@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import type { Contact, Exchange, Mission, Request } from '../types';
 import type { CreateContactInput, IRepository } from '../data/repositories/interface';
 import { AppStoreProvider, useAppStore, type AppStoreData } from './AppStore';
+import * as factoryModule from '../data/repositories/factory';
 
 type RepositorySpy = IRepository & {
   loadContactsSpy: Mock<() => Promise<Contact[]>>;
@@ -406,6 +407,80 @@ describe('AppStore → Repository', () => {
     const after = getLatest().contacts;
     expect(after).toHaveLength(1);
     expect(after[0]?.id).toBe('c-1');
+  });
+
+  describe('Stabilité instance repository (lazy init)', () => {
+    it('10. repository injecté en prop : instance utilisée reste stable après rerenders', async () => {
+      const injectedRepo = buildRepository();
+
+      function Dummy({ count }: { count: number }) {
+        return (
+          <AppStoreProvider repository={injectedRepo}>
+            <div data-testid="dummy" data-count={String(count)} />
+          </AppStoreProvider>
+        );
+      }
+      const { rerender } = render(<Dummy count={0} />);
+
+      await waitFor(() => {
+        expect(injectedRepo.loadContactsSpy).toHaveBeenCalledTimes(1);
+      });
+
+      act(() => {
+        rerender(<Dummy count={1} />);
+      });
+      act(() => {
+        rerender(<Dummy count={2} />);
+      });
+      act(() => {
+        rerender(<Dummy count={3} />);
+      });
+
+      await waitFor(() => {
+        expect(injectedRepo.loadContactsSpy).toHaveBeenCalledTimes(1);
+        expect(screen.getByTestId('dummy')).toHaveAttribute('data-count', '3');
+      });
+    });
+
+    it('11. repository par défaut : createRepository() appelé exactement 1× malgré rerenders', async () => {
+      const baseRepo = buildRepository();
+      const createSpy = vi
+        .spyOn(factoryModule, 'createRepository')
+        .mockImplementation(() => baseRepo);
+
+      try {
+        function Dummy({ count }: { count: number }) {
+          return (
+            <AppStoreProvider>
+              <div data-testid="dummy" data-count={String(count)} />
+            </AppStoreProvider>
+          );
+        }
+        const { rerender } = render(<Dummy count={0} />);
+
+        await waitFor(() => {
+          expect(createSpy).toHaveBeenCalledTimes(1);
+          expect(baseRepo.loadContactsSpy).toHaveBeenCalledTimes(1);
+        });
+
+        act(() => {
+          rerender(<Dummy count={1} />);
+        });
+        act(() => {
+          rerender(<Dummy count={2} />);
+        });
+        act(() => {
+          rerender(<Dummy count={3} />);
+        });
+
+        await waitFor(() => {
+          expect(createSpy).toHaveBeenCalledTimes(1);
+          expect(baseRepo.loadContactsSpy).toHaveBeenCalledTimes(1);
+        });
+      } finally {
+        createSpy.mockRestore();
+      }
+    });
   });
 });
 

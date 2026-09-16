@@ -3,29 +3,23 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { AppStoreProvider, useAppStore } from '../../store/AppStore';
 import { ContactCardModal } from './ContactCardModal';
 import type { ReactElement } from 'react';
-import { useEffect } from 'react';
 
 function withWrapper(ui: ReactElement) {
   return <AppStoreProvider>{ui}</AppStoreProvider>;
 }
 
+/**
+ * Attend que le store ait terminé son chargement initial.
+ * Rien n'est écrit dans globalThis.
+ */
 async function waitForDataLoaded() {
   await waitFor(() => {
-    const store = (globalThis as unknown as { _appStoreSnapshot?: ReturnType<typeof useAppStore> })._appStoreSnapshot;
-    if (!store) {
-      // Fallback: au moins provider a fini le chargement (plus de loading=true) : dialog apparaitra donc
-      // La modal ContactCardModal render immédiatement mais utilise store.data.contacts.
-      // On utilise un hook helper en dessous.
-    }
-    expect(screen.queryByRole('status', { name: /chargement/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('appstore-not-ready')).not.toBeInTheDocument();
   });
 }
 
 function DataReady() {
   const store = useAppStore();
-  useEffect(() => {
-    (globalThis as unknown as { _appStoreSnapshot?: ReturnType<typeof useAppStore> })._appStoreSnapshot = store;
-  });
   if (store.data.loading || store.data.error) {
     return <div data-testid="appstore-not-ready" />;
   }
@@ -49,9 +43,6 @@ describe('ContactCardModal — BUG 7 : ouvrir la demande sélectionnée', () => 
       )
     );
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('appstore-not-ready')).not.toBeInTheDocument();
-    });
     await waitForDataLoaded();
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -80,9 +71,6 @@ describe('ContactCardModal — BUG 7 : ouvrir la demande sélectionnée', () => 
       )
     );
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('appstore-not-ready')).not.toBeInTheDocument();
-    });
     await waitForDataLoaded();
 
     expect(
@@ -110,9 +98,6 @@ describe('ContactCardModal — BUG 7 : ouvrir la demande sélectionnée', () => 
       )
     );
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('appstore-not-ready')).not.toBeInTheDocument();
-    });
     await waitForDataLoaded();
 
     expect(
@@ -146,9 +131,6 @@ describe('ContactCardModal — BUG 4 : Ctrl/Cmd+K ne déplace pas le focus hors 
       )
     );
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('appstore-not-ready')).not.toBeInTheDocument();
-    });
     await waitForDataLoaded();
 
     const dialog = screen.getByRole('dialog');
@@ -183,9 +165,6 @@ describe('ContactCardModal — BUG 4 : Ctrl/Cmd+K ne déplace pas le focus hors 
       )
     );
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('appstore-not-ready')).not.toBeInTheDocument();
-    });
     await waitForDataLoaded();
 
     const dialog = screen.getByRole('dialog');
