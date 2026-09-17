@@ -178,7 +178,7 @@ export function MissionEditModal({ missionId, onClose }: MissionEditModalProps) 
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-70 flex items-center justify-center p-4 sm:p-6">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
         <motion.div
           key="mission-edit-backdrop"
           className="absolute inset-0 bg-slate-900/55 backdrop-blur-md"
