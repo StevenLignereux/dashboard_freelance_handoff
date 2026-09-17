@@ -71,6 +71,8 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
     createRequestAction: createRequestActionSpy,
+    updateRequestAction: () =>
+      Promise.reject(new Error('not implemented')),
     ...overrides,
     createRequest: createRequestSpy,
     createRequestSpy,

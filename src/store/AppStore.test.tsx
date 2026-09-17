@@ -102,6 +102,8 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     updateContact: updateContactSpy,
     archiveContact: archiveContactSpy,
     createRequestAction: createRequestActionSpy,
+    updateRequestAction: () =>
+      Promise.reject(new Error('not implemented')),
     createRequest: createRequestSpy,
     updateRequest: updateRequestSpy,
     archiveRequest: archiveRequestSpy,

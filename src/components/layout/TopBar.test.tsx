@@ -131,6 +131,8 @@ const NOOP_REPO: IRepository = {
   createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
   updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
   archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
+  updateRequestAction: () =>
+    Promise.reject(new Error('not implemented')),
 };
 
 function wrap(children: ReactNode, authClient: FakeAuthClient) {

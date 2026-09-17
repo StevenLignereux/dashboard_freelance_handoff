@@ -7,7 +7,16 @@
  */
 
 import type { Contact, Exchange, Mission, NextAction, Request } from '../../types';
-import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
+import type {
+  CreateContactInput,
+  CreateRequestActionInput,
+  CreateRequestInput,
+  IRepository,
+  UpdateContactInput,
+  UpdateRequestActionInput,
+  UpdateRequestInput,
+} from './interface';
+
 import {
   seedContacts,
   seedRequests,
@@ -212,7 +221,53 @@ export class SeedRepository implements IRepository {
     return action;
   }
 
-  
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async updateRequestAction(
+    actionId: string,
+    input: UpdateRequestActionInput
+  ): Promise<NextAction> {
+    const requestIndex = this.requests.findIndex(
+      (request) => request.nextAction?.id === actionId
+    );
+
+    if (requestIndex === -1) {
+      throw new Error(
+        `Cannot update request action: action id=${actionId} not found.`
+      );
+    }
+
+    const request = this.requests[requestIndex];
+
+    if (request.archived) {
+      throw new Error(
+        `Cannot update request action: request id=${request.id} is archived.`
+      );
+    }
+
+    const previousAction = request.nextAction;
+
+    if (!previousAction) {
+      throw new Error(
+        `Cannot update request action: action id=${actionId} not found.`
+      );
+    }
+
+    const updatedAction: NextAction = {
+      ...previousAction,
+      type: input.type ?? previousAction.type,
+      label: input.label ?? previousAction.label,
+      dueDate: input.dueDate ?? previousAction.dueDate,
+    };
+
+    this.requests[requestIndex] = {
+      ...request,
+      nextAction: updatedAction,
+    };
+
+    return updatedAction;
+  }
+
 
   archiveRequest(requestId: string): Promise<void> {
     const idx = this.requests.findIndex((r) => r.id === requestId);

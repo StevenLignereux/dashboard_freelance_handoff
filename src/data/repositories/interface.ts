@@ -102,6 +102,14 @@ export interface IRepository {
    */
   createRequestAction(input: CreateRequestActionInput): Promise<NextAction>;
 
+  /**
+   * Met à jour une action existante.
+   */
+   updateRequestAction(
+    actionId: string,
+    input: UpdateRequestActionInput
+  ): Promise<NextAction>;
+
 
   /**
    * Met à jour un contact existant via UpdateContactInput.
