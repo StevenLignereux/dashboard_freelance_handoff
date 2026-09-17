@@ -17,3 +17,6 @@ supabase/.branches/
 
 # TypeScript build artifacts
 *.tsbuildinfo
+
+# Local test output
+test-output.txt
