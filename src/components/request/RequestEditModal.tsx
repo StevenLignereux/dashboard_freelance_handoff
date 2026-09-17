@@ -174,13 +174,11 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
         description: description.trim().length > 0 ? description.trim() : null,
       });
 
-      if (request.nextAction && actionType) {
-        const localDate = new Date(actionDueDate);
-        const utcDate = new Date(localDate.getTime() + localDate.getTimezoneOffset() * 60000);
+      if (request.nextAction && actionType && actionDueDate && actionLabel.trim()) {
         await store.data.updateRequestAction(request.nextAction.id, {
           type: actionType,
           label: actionLabel.trim(),
-          dueDate: utcDate.toISOString(),
+          dueDate: new Date(actionDueDate).toISOString(),
         });
       }
 
