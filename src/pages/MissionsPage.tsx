@@ -183,8 +183,8 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
   }, [allFilteredItems, currentView]);
 
   const ongoingCount = useMemo(() => 
-    allFilteredItems.filter((i) => i.mission.status === 'en_cours').length,
-    [allFilteredItems]
+    store.data.missions.filter(m => m.status === 'en_cours').length,
+    [store.data.missions]
   );
 
   const viewCounts = useMemo(() => {
@@ -195,7 +195,15 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
     return { following, completed, all: allFilteredItems.length };
   }, [allFilteredItems]);
 
+  const hasActiveSearch = store.search.query.trim().length > 0;
+
   const emptyStateConfig = useMemo(() => {
+    if (hasActiveSearch) {
+      return {
+        title: 'Aucun résultat',
+        description: 'Aucune mission ne correspond à ta recherche.'
+      };
+    }
     if (currentView === 'following') {
       return {
         title: 'Aucune mission à suivre',
@@ -212,7 +220,7 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
       title: 'Aucune mission trouvée',
       description: 'Les missions apparaîtront ici une fois liées à une demande.'
     };
-  }, [currentView]);
+  }, [currentView, hasActiveSearch]);
 
   const viewOptions: { value: FilterView; label: string; count: number }[] = [
     { value: 'following', label: 'À suivre', count: viewCounts.following },
@@ -238,12 +246,13 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
         </div>
       </header>
 
-      <div className="inline-flex p-1 bg-slate-100 rounded-lg">
+      <div className="inline-flex p-1 bg-slate-100 rounded-lg" role="group" aria-label="Filtres de mission">
         {viewOptions.map((option) => (
           <button
             key={option.value}
             type="button"
             onClick={() => { setCurrentView(option.value); }}
+            aria-pressed={currentView === option.value}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
               currentView === option.value
                 ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
