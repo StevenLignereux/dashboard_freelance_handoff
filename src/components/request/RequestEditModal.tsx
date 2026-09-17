@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore, useReducedMotion } from '../../store/AppStore';
-import type { Contact } from '../../types';
+import type { Contact, NextActionType } from '../../types';
 
 interface RequestEditModalProps {
   requestId: string | null;
@@ -27,6 +27,17 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
+const actionTypes: { value: NextActionType; label: string }[] = [
+  { value: 'relance', label: 'Relance' },
+  { value: 'proposition', label: 'Proposition' },
+  { value: 'appel', label: 'Appel' },
+  { value: 'devis', label: 'Devis' },
+  { value: 'documents', label: 'Documents' },
+  { value: 'precision', label: 'Précision' },
+  { value: 'echange', label: 'Échange' },
+  { value: 'autre', label: 'Autre' },
+];
+
 export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
@@ -43,6 +54,17 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
 
   const [title, setTitle] = useState(request?.title ?? '');
   const [description, setDescription] = useState(request?.description ?? '');
+  const [actionType, setActionType] = useState<NextActionType | undefined>(request?.nextAction?.type);
+  const [actionLabel, setActionLabel] = useState(request?.nextAction?.label ?? '');
+  const [actionDueDate, setActionDueDate] = useState(() => {
+    if (request?.nextAction?.dueDate) {
+      const date = new Date(request.nextAction.dueDate);
+      const tzOffset = date.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+      return localISOTime;
+    }
+    return '';
+  });
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -57,9 +79,17 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
     if (!request) return;
     setTitle(request.title);
     setDescription(request.description ?? '');
+    if (request.nextAction) {
+      setActionType(request.nextAction.type);
+      setActionLabel(request.nextAction.label);
+      const date = new Date(request.nextAction.dueDate);
+      const tzOffset = date.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+      setActionDueDate(localISOTime);
+    }
     setPending(false);
     setSubmitError(null);
-  }, [request?.id, request?.title, request?.description]);
+  }, [request?.id, request?.title, request?.description, request?.nextAction]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,6 +154,14 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
     };
   }, [isOpen, requestClose]);
 
+  const handleActionTypeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    const validType = actionTypes.find(type => type.value === value);
+    if (validType) {
+      setActionType(validType.value);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!request || !contact) return;
@@ -135,10 +173,20 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
         title: title.trim(),
         description: description.trim().length > 0 ? description.trim() : null,
       });
+
+      if (request.nextAction && actionType) {
+        const localDate = new Date(actionDueDate);
+        const utcDate = new Date(localDate.getTime() + localDate.getTimezoneOffset() * 60000);
+        await store.data.updateRequestAction(request.nextAction.id, {
+          type: actionType,
+          label: actionLabel.trim(),
+          dueDate: utcDate.toISOString(),
+        });
+      }
+
       onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Une erreur est survenue.';
-      setSubmitError(message);
+    } catch {
+      setSubmitError('Une erreur est survenue lors de l\'enregistrement.');
     } finally {
       setPending(false);
     }
@@ -218,6 +266,63 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
                 </label>
               </div>
 
+              {request.nextAction && (
+                <div className="border-t border-slate-200 pt-5 mt-5">
+                  <h3 className="flex items-center gap-2 text-[13px] uppercase tracking-wider font-semibold text-slate-600 mb-4">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Prochaine action
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block">
+                        <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5 block">
+                          Type
+                        </span>
+                        <select
+                          className="input w-full mt-1"
+                          value={actionType}
+                          onChange={handleActionTypeChange}
+                        >
+                          {actionTypes.map((type) => (
+                            <option key={type.value} value={type.value}>
+                              {type.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block">
+                        <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5 block">
+                          Date et heure
+                        </span>
+                        <input
+                          type="datetime-local"
+                          className="input w-full mt-1"
+                          value={actionDueDate}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => { setActionDueDate(e.target.value); }}
+                        />
+                      </label>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block">
+                        <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5 block">
+                          Libellé
+                        </span>
+                        <input
+                          type="text"
+                          className="input w-full mt-1"
+                          value={actionLabel}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => { setActionLabel(e.target.value); }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {submitError && (
                 <div role="alert" className="alert-error">
                   {submitError}
@@ -236,7 +341,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={pending || title.trim().length === 0}
+                  disabled={pending || title.trim().length === 0 || (request.nextAction && (!actionType || !actionDueDate || !actionLabel.trim()))}
                 >
                   {pending ? (
                     <>
