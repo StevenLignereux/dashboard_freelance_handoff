@@ -126,11 +126,10 @@ export function buildDashboardData({
     };
 
     if (na.isOverdue) {
-      const days = na.overdueDays ?? 0;
       overdue.push({
         ...base,
         tone: 'danger',
-        sub: `Relance en retard de ${days} jour${days > 1 ? 's' : ''}`,
+        sub: na.label,
       });
     } else if (na.isToday) {
       today.push({
