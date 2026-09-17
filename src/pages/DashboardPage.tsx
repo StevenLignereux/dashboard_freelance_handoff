@@ -4,7 +4,8 @@ import { ActiveMissionsPanel } from '../components/dashboard/ActiveMissionsPanel
 import { ContactsSection } from '../components/contact/ContactsSection';
 import { useAppStore } from '../store/AppStore';
 import { buildDashboardData } from '../selectors/dashboard';
-import { currentUser, appConfig } from '../config/appConfig';
+import { useCurrentUser } from '../auth/AuthProvider';
+import { appConfig } from '../config/appConfig';
 import { pluralize } from '../utils/formatting';
 import type { OpenContactPayload } from '../App';
 
@@ -18,6 +19,7 @@ export function DashboardPage({
   activeContactId,
 }: DashboardPageProps) {
   const store = useAppStore();
+  const currentUser = useCurrentUser();
   const dashboard = buildDashboardData({
     requests: store.data.requests,
     contacts: store.data.contacts,

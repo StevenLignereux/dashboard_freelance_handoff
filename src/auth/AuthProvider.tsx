@@ -20,6 +20,7 @@ import {
 } from 'react';
 import type { Session, User, AuthError } from '@supabase/supabase-js';
 import { getSupabaseOrThrow } from '../lib/supabase/client';
+import { buildCurrentUser, type CurrentUser } from '../utils/user';
 
 /**
  * Interface minimale du client auth pour injection dans les tests.
@@ -230,4 +231,10 @@ export function useAuth(): AuthValue {
   return ctx;
 }
 
+export function useCurrentUser(): CurrentUser {
+  const { user } = useAuth();
+  return useMemo(() => buildCurrentUser(user ?? null), [user]);
+}
+
 export type { AuthValue };
+export type { CurrentUser };

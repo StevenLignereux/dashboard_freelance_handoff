@@ -1,5 +1,4 @@
 import { clock } from '../config/clock';
-import { applyRelanceRules } from '../data/seedData';
 import type {
   Contact,
   Exchange,
@@ -56,6 +55,40 @@ export function hydrateNextAction(
   };
 }
 
+/** Relances auto : demande "Solution proposée" sans prochaine action et ≥5 jours depuis la dernière activité.
+ *  Utilise la liste des contacts fournie pour composer le libellé de la relance (jamais seed).
+ */
+export function applyRelanceRules(
+  requests: Request[],
+  contacts: Contact[]
+): Request[] {
+  const now = clock.now().getTime();
+  const contactById = new Map(contacts.map((c) => [c.id, c]));
+  return requests.map((r) => {
+    if (r.status !== 'solution_proposee') return r;
+    if (r.nextAction) return r;
+    const last = new Date(r.lastActivityAt);
+    const daysSince = Math.floor(
+      (now - last.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysSince < 5) return r;
+    const dueDate = new Date(last);
+    dueDate.setDate(dueDate.getDate() + 5);
+    const contact = contactById.get(r.contactId);
+    return {
+      ...r,
+      nextAction: {
+        id: `auto-relance-${r.id}`,
+        type: 'relance',
+        label: `Relancer ${
+          contact?.lastName ?? ''
+        } — ${r.title}`,
+        dueDate: dueDate.toISOString(),
+      },
+    };
+  });
+}
+
 export function buildDashboardData({
   requests: rawRequests,
   contacts,
@@ -65,7 +98,7 @@ export function buildDashboardData({
   contacts: Contact[];
   missions: Mission[];
 }): DashboardData {
-  const requests = applyRelanceRules(rawRequests).map((r) => ({
+  const requests = applyRelanceRules(rawRequests, contacts).map((r) => ({
     ...r,
     nextAction: hydrateNextAction(r.nextAction),
   }));

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth, useCurrentUser } from '../../auth/AuthProvider';
 import { useAppStore } from '../../store/AppStore';
-import { currentUser } from '../../config/appConfig';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -11,6 +10,7 @@ interface TopBarProps {
 export function TopBar({ onToggleSidebar, menuButtonRef }: TopBarProps) {
   const store = useAppStore();
   const auth = useAuth();
+  const currentUser = useCurrentUser();
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 

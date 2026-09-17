@@ -1,8 +1,10 @@
 import { useAppStore, useReducedMotion } from '../store/AppStore';
-import { currentUser, appConfig } from '../config/appConfig';
+import { useCurrentUser } from '../auth/AuthProvider';
+import { appConfig } from '../config/appConfig';
 
 export function SettingsPage() {
   const store = useAppStore();
+  const currentUser = useCurrentUser();
   const reduced = useReducedMotion();
 
   return (
