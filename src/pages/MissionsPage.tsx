@@ -138,6 +138,8 @@ function MissionCard({ mission, contactName, onOpenContact, onEditMission }: { m
   );
 }
 
+type FilterView = 'following' | 'completed' | 'all';
+
 interface MissionsPageProps {
   onOpenContact: (contactId: string | OpenContactPayload) => void;
   onEditMission: (missionId: string) => void;
@@ -145,8 +147,9 @@ interface MissionsPageProps {
 
 export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps) {
   const store = useAppStore();
+  const [currentView, setCurrentView] = useState<FilterView>('following');
 
-  const items = useMemo(() => {
+  const allFilteredItems = useMemo(() => {
     const { contacts, missions } = store.data;
     const query = store.search.query.trim().toLowerCase();
     const contactById = new Map(contacts.map((c) => [c.id, c]));
@@ -169,6 +172,54 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
       });
   }, [store.data.missions, store.data.contacts, store.search.query]);
 
+  const displayedItems = useMemo(() => {
+    if (currentView === 'all') return allFilteredItems;
+    if (currentView === 'following') {
+      return allFilteredItems.filter(({ mission }) => 
+        mission.status === 'a_demarrer' || mission.status === 'en_cours' || mission.status === 'en_attente'
+      );
+    }
+    return allFilteredItems.filter(({ mission }) => mission.status === 'terminee');
+  }, [allFilteredItems, currentView]);
+
+  const ongoingCount = useMemo(() => 
+    allFilteredItems.filter((i) => i.mission.status === 'en_cours').length,
+    [allFilteredItems]
+  );
+
+  const viewCounts = useMemo(() => {
+    const following = allFilteredItems.filter(({ mission }) => 
+      mission.status === 'a_demarrer' || mission.status === 'en_cours' || mission.status === 'en_attente'
+    ).length;
+    const completed = allFilteredItems.filter(({ mission }) => mission.status === 'terminee').length;
+    return { following, completed, all: allFilteredItems.length };
+  }, [allFilteredItems]);
+
+  const emptyStateConfig = useMemo(() => {
+    if (currentView === 'following') {
+      return {
+        title: 'Aucune mission à suivre',
+        description: 'Toutes vos missions sont terminées. Vous pouvez créer une nouvelle mission pour commencer.'
+      };
+    }
+    if (currentView === 'completed') {
+      return {
+        title: 'Aucune mission terminée',
+        description: 'Les missions que vous marquez comme terminées apparaîtront ici.'
+      };
+    }
+    return {
+      title: 'Aucune mission trouvée',
+      description: 'Les missions apparaîtront ici une fois liées à une demande.'
+    };
+  }, [currentView]);
+
+  const viewOptions: { value: FilterView; label: string; count: number }[] = [
+    { value: 'following', label: 'À suivre', count: viewCounts.following },
+    { value: 'completed', label: 'Terminées', count: viewCounts.completed },
+    { value: 'all', label: 'Toutes', count: viewCounts.all },
+  ];
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
@@ -182,19 +233,39 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="chip bg-brand-green/15 text-brand-green ring-1 ring-brand-green/30">
-            {items.filter((i) => i.mission.status === 'en_cours').length} en cours
+            {ongoingCount} en cours
           </div>
         </div>
       </header>
 
-      {items.length === 0 ? (
+      <div className="inline-flex p-1 bg-slate-100 rounded-lg">
+        {viewOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => { setCurrentView(option.value); }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              currentView === option.value
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {option.label}
+            <span className={`ml-1.5 ${currentView === option.value ? 'text-slate-500' : 'text-slate-400'}`}>
+              {option.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {displayedItems.length === 0 ? (
         <EmptyState
-          title="Aucune mission trouvée"
-          description="Les missions apparaîtront ici une fois liées à une demande."
+          title={emptyStateConfig.title}
+          description={emptyStateConfig.description}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map(({ mission, contact }) => {
+          {displayedItems.map(({ mission, contact }) => {
             const contactName = contact
               ? `${contact.firstName} ${contact.lastName}${contact.company ? ` · ${contact.company}` : ''}`
               : 'Contact inconnu';
