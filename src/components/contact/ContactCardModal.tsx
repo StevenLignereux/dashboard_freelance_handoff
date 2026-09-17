@@ -22,6 +22,7 @@ interface ContactCardModalProps {
   onEdit?: (contactId: string) => void;
   onArchive?: (contactId: string) => void;
   onCreateRequest?: (contactId: string) => void;
+  onCreateRequestAction?: (requestId: string) => void;
   onEditRequest?: (requestId: string) => void;
   onArchiveRequest?: (requestId: string) => void;
 }
@@ -53,7 +54,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -63,8 +64,8 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
   const contact = store.data.contacts.find((c) => c.id === contactId) ?? null;
   const selectedRequest = contact && requestId
     ? store.data.requests.find(
-        (r) => r.id === requestId && r.contactId === contact.id
-      )
+      (r) => r.id === requestId && r.contactId === contact.id
+    )
     : undefined;
   const activeRequest: Request | undefined = contact
     ? (selectedRequest ??
@@ -78,10 +79,10 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
     : [];
   const contactExchanges: Exchange[] = contact
     ? getExchangesForContact({
-        contactId: contact.id,
-        requests: store.data.requests,
-        exchanges: store.data.exchanges,
-      })
+      contactId: contact.id,
+      requests: store.data.requests,
+      exchanges: store.data.exchanges,
+    })
     : [];
 
   const nextActionHydrated = hydrateNextAction(activeRequest?.nextAction);
@@ -274,6 +275,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
                     isActive={!requestId}
                     onEditRequest={onEditRequest}
                     onArchiveRequest={onArchiveRequest}
+                    onCreateRequestAction={onCreateRequestAction}
                   />
                 ) : (
                   !contact.archived && (
@@ -417,7 +419,7 @@ function ContactIdentity({ contact }: { contact: Contact }) {
   );
 }
 
-function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void }) {
+function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest, onCreateRequestAction }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void; onCreateRequestAction?: (requestId: string) => void }) {
   return (
     <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -445,8 +447,22 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
       <div className="text-[11px] text-slate-500 flex items-center gap-3 pt-1">
         <span>Créée le {formatDueDate(request.createdAt).dateLabel}</span>
       </div>
-      {!request.archived && (onEditRequest ?? onArchiveRequest) && (
+      {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction) && (
         <div className="flex items-center gap-2 pt-2 mt-3 border-t border-white/5">
+          {!request.nextAction && onCreateRequestAction && (
+            <button
+              type="button"
+              onClick={() => { onCreateRequestAction(request.id); }}
+              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 text-brand-violet hover:bg-brand-violet/10"            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Planifier une action
+            </button>
+          )}
           {onEditRequest && (
             <button
               type="button"

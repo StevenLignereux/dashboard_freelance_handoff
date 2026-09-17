@@ -198,4 +198,75 @@ describe('ContactCardModal — Request CTA & archive', () => {
     expect(onArchiveRequest).toHaveBeenCalledTimes(1);
     expect(onArchiveRequest).toHaveBeenCalledWith('r-active-marie');
   });
+
+  it('53. CTA Planifier une action → visible sans nextAction et appelle le callback', async () => {
+    const onCreateRequestAction = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-with-active"
+            requestId={null}
+            onClose={noop}
+            onCreateRequestAction={onCreateRequestAction}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const actionButton = screen.getByRole('button', {
+      name: /Planifier une action/i,
+    });
+
+    expect(actionButton).toBeInTheDocument();
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    await act(async () => {
+      fireEvent.click(actionButton);
+    });
+
+    expect(onCreateRequestAction).toHaveBeenCalledTimes(1);
+    expect(onCreateRequestAction).toHaveBeenCalledWith('r-active-marie');
+  });
+
+  it('54. CTA Planifier une action → absent si une nextAction existe déjà', async () => {
+    const requestWithAction: Request = {
+      ...ACTIVE_REQUEST_MARIE,
+      nextAction: {
+        id: 'a-existing',
+        type: 'appel',
+        label: 'Appeler le client',
+        dueDate: '2026-09-18T10:00:00.000Z',
+      },
+    };
+
+    const repo = buildRepository({
+      loadRequests: () => Promise.resolve([requestWithAction]),
+    });
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-with-active"
+            requestId={null}
+            onClose={noop}
+            onCreateRequestAction={noop}
+          />
+        </>,
+        repo
+      )
+    );
+
+    await waitForDataLoaded();
+
+    expect(
+      screen.queryByRole('button', { name: /Planifier une action/i })
+    ).not.toBeInTheDocument();
+  });
 });

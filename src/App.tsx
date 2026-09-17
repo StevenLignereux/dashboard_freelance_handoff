@@ -13,6 +13,7 @@ import { ArchiveConfirmation } from './components/contact/ArchiveConfirmation';
 import { RequestCreateModal } from './components/request/RequestCreateModal';
 import { RequestEditModal } from './components/request/RequestEditModal';
 import { RequestArchiveConfirmation } from './components/request/RequestArchiveConfirmation';
+import { RequestActionCreateModal } from './components/request/RequestActionCreateModal';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginPage } from './pages/LoginPage';
 
@@ -106,10 +107,12 @@ function Router() {
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [archivingRequestId, setArchivingRequestId] = useState<string | null>(null);
   const [preRequestPayload, setPreRequestPayload] = useState<OpenContactPayload | null>(null);
+  const [creatingRequestActionForRequestId, setCreatingRequestActionForRequestId] = useState<string | null>(null);
   type PendingRequestModal =
     | { type: 'create'; contactId: string }
     | { type: 'edit'; requestId: string }
     | { type: 'archive'; requestId: string }
+    | { type: 'action'; requestId: string }
     | null;
   const [pendingRequestModal, setPendingRequestModal] = useState<PendingRequestModal>(null);
 
@@ -188,6 +191,9 @@ function Router() {
       case 'archive':
         setArchivingRequestId(pending.requestId);
         break;
+      case 'action':
+        setCreatingRequestActionForRequestId(pending.requestId);
+        break;
     }
   }, [pendingRequestModal]);
 
@@ -246,6 +252,25 @@ function Router() {
     }
   }, [preRequestPayload]);
 
+  const handleCreateRequestAction = useCallback((requestId: string) => {
+    const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
+    if (!contactId) return;
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
+    setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'action', requestId });
+    setActiveContact(null);
+  }, [store.data.requests, activeContact]);
+
+  const handleCancelCreateRequestAction = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setCreatingRequestActionForRequestId(null);
+    setPendingRequestModal(null);
+    setPreRequestPayload(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preRequestPayload]);
+
   const handleArchivedRequest = useCallback(() => {
     setArchivingRequestId(null);
     setActiveContact(null);
@@ -293,6 +318,7 @@ function Router() {
             onCreateRequest={handleCreateRequest}
             onEditRequest={handleEditRequest}
             onArchiveRequest={handleArchiveRequest}
+            onCreateRequestAction={handleCreateRequestAction}
           />
           <ContactCreateModal
             open={createOpen}
@@ -319,6 +345,10 @@ function Router() {
             requestId={archivingRequestId}
             onClose={handleCancelArchiveRequest}
             onSuccess={handleArchivedRequest}
+          />
+          <RequestActionCreateModal
+            requestId={creatingRequestActionForRequestId}
+            onClose={handleCancelCreateRequestAction}
           />
         </>
       )}
