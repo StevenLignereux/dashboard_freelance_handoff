@@ -233,7 +233,7 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
       if (totalFollowingMissions === 0 && totalMissions > 0) {
         return {
           title: 'Aucune mission à suivre',
-          description: 'Toutes tes missions sont terminées. Tu peux créer une nouvelle mission pour commencer.'
+          description: 'Toutes tes missions sont terminées. Tu peux en créer une nouvelle depuis une demande.'
         };
       }
       if (totalMissions === 0) {
