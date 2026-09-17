@@ -17,6 +17,7 @@ type RepositorySpy = IRepository & {
   archiveContactSpy: Mock<(contactId: string) => Promise<void>>;
   createRequestSpy: Mock<(input: CreateRequestInput) => Promise<Request>>;
   updateRequestSpy: Mock<(requestId: string, input: UpdateRequestInput) => Promise<Request>>;
+  createRequestActionSpy: Mock<(input: CreateRequestActionInput) => Promise<NextAction>>;
   archiveRequestSpy: Mock<(requestId: string) => Promise<void>>;
 };
 
@@ -113,6 +114,7 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     archiveContactSpy,
     createRequestSpy,
     updateRequestSpy,
+    createRequestActionSpy,
     archiveRequestSpy,
   };
 }
@@ -207,6 +209,13 @@ const SAMPLE_REQUEST_CREATED: Request = {
   createdAt: '2024-06-15T00:00:00Z',
   lastActivityAt: '2024-06-15T00:00:00Z',
   archived: false,
+};
+
+const SAMPLE_NEXT_ACTION: NextAction = {
+  id: 'a-1',
+  type: 'appel',
+  label: 'Appeler le client',
+  dueDate: '2024-06-20T10:00:00Z',
 };
 
 describe('AppStore → Repository', () => {
@@ -1168,6 +1177,188 @@ describe('AppStore → Repository', () => {
       expect(getLatest().contacts[0].activeRequestId).toBe(beforeActiveId);
     });
   });
+
+    describe('AppStore → Request Actions (tests 43-46)', () => {
+    it('43. createRequestAction appelle le repository avec le bon payload et retourne l’action créée', async () => {
+      const repo = buildRepository({
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        createRequestAction: () => Promise.resolve(SAMPLE_NEXT_ACTION),
+      });
+
+      const { Capture, getLatest } = snap('capture-43', (d) => ({
+        requests: d.requests,
+        createRequestAction: d.createRequestAction,
+      }));
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      const payload: CreateRequestActionInput = {
+        requestId: SAMPLE_REQUEST_1.id,
+        type: 'appel',
+        label: 'Appeler le client',
+        dueDate: '2024-06-20T10:00:00Z',
+      };
+
+      const result = await act(async () => {
+        return getLatest().createRequestAction(payload);
+      });
+
+      expect(repo.createRequestActionSpy).toHaveBeenCalledTimes(1);
+      expect(repo.createRequestActionSpy).toHaveBeenCalledWith(payload);
+      expect(result).toEqual(SAMPLE_NEXT_ACTION);
+    });
+
+    it('44. createRequestAction met à jour uniquement nextAction de la bonne demande sans modifier status ni lastActivityAt', async () => {
+      const otherRequest: Request = {
+        ...SAMPLE_REQUEST_1,
+        id: 'r-2',
+        title: 'Autre demande',
+      };
+
+      const repo = buildRepository({
+        loadRequests: () =>
+          Promise.resolve([SAMPLE_REQUEST_1, otherRequest]),
+        createRequestAction: () => Promise.resolve(SAMPLE_NEXT_ACTION),
+      });
+
+      const { Capture, getLatest } = snap('capture-44', (d) => ({
+        requests: d.requests,
+        createRequestAction: d.createRequestAction,
+      }));
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(2);
+      });
+
+      const beforeTarget = getLatest().requests.find(
+        (request) => request.id === SAMPLE_REQUEST_1.id
+      );
+
+      const beforeOther = getLatest().requests.find(
+        (request) => request.id === otherRequest.id
+      );
+
+      await act(async () => {
+        await getLatest().createRequestAction({
+          requestId: SAMPLE_REQUEST_1.id,
+          type: 'appel',
+          label: 'Appeler le client',
+          dueDate: '2024-06-20T10:00:00Z',
+        });
+      });
+
+      const afterTarget = getLatest().requests.find(
+        (request) => request.id === SAMPLE_REQUEST_1.id
+      );
+
+      const afterOther = getLatest().requests.find(
+        (request) => request.id === otherRequest.id
+      );
+
+      expect(afterTarget?.nextAction).toEqual(SAMPLE_NEXT_ACTION);
+      expect(afterTarget?.status).toBe(beforeTarget?.status);
+      expect(afterTarget?.lastActivityAt).toBe(beforeTarget?.lastActivityAt);
+
+      expect(beforeTarget?.nextAction).toBeUndefined();
+      expect(afterTarget).not.toBe(beforeTarget);
+
+      expect(afterOther).toEqual(beforeOther);
+    });
+
+    it('45. erreur createRequestAction → Promise rejetée et state requests inchangé', async () => {
+      const repo = buildRepository({
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        createRequestAction: () =>
+          Promise.reject(new Error('create action boom')),
+      });
+
+      const { Capture, getLatest } = snap('capture-45', (d) => ({
+        requests: d.requests,
+        createRequestAction: d.createRequestAction,
+      }));
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      const before = [...getLatest().requests];
+      let caughtError: unknown = null;
+
+      await act(async () => {
+        try {
+          await getLatest().createRequestAction({
+            requestId: SAMPLE_REQUEST_1.id,
+            type: 'appel',
+            label: 'Appeler le client',
+            dueDate: '2024-06-20T10:00:00Z',
+          });
+        } catch (error) {
+          caughtError = error;
+        }
+      });
+
+      expect(caughtError).toBeInstanceOf(Error);
+      expect((caughtError as Error).message).toMatch(/create action boom/);
+      expect(getLatest().requests).toEqual(before);
+    });
+
+    it('46. demande absente du state → aucune demande fantôme ajoutée', async () => {
+      const repo = buildRepository({
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        createRequestAction: () => Promise.resolve(SAMPLE_NEXT_ACTION),
+      });
+
+      const { Capture, getLatest } = snap('capture-46', (d) => ({
+        requests: d.requests,
+        createRequestAction: d.createRequestAction,
+      }));
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      const before = [...getLatest().requests];
+
+      await act(async () => {
+        await getLatest().createRequestAction({
+          requestId: 'r-absente-du-state',
+          type: 'appel',
+          label: 'Test',
+          dueDate: '2024-06-20T10:00:00Z',
+        });
+      });
+
+      expect(getLatest().requests).toEqual(before);
+      expect(getLatest().requests).toHaveLength(1);
+    });
+  });
+
 });
 
 export type { AppStoreData };

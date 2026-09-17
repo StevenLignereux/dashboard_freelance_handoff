@@ -15,9 +15,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Contact, Exchange, Mission, NavItemKey, Request } from '../types';
+import type { Contact, Exchange, Mission, NavItemKey, NextAction, Request } from '../types';
 import { clock } from '../config/clock';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../data/repositories/interface';
+import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../data/repositories/interface';
 import { createRepository } from '../data/repositories/factory';
 
 interface AppStoreDataSlice {
@@ -33,6 +33,7 @@ interface AppStoreDataSlice {
   archiveContact: (contactId: string) => Promise<void>;
   addRequest: (input: CreateRequestInput) => Promise<Request>;
   updateRequest: (requestId: string, input: UpdateRequestInput) => Promise<Request>;
+  createRequestAction: (input: CreateRequestActionInput) => Promise<NextAction>;
   archiveRequest: (requestId: string) => Promise<void>;
 }
 
@@ -240,6 +241,32 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
     return updated;
   }, []);
 
+  const createRequestAction = useCallback<AppStoreDataSlice['createRequestAction']>(
+  async (input) => {
+    const repo = repositoryRef.current;
+    const created = await repo.createRequestAction(input);
+
+    setRequests((prev) => {
+      const idx = prev.findIndex((request) => request.id === input.requestId);
+
+      if (idx === -1) {
+        return prev;
+      }
+
+      const next = prev.slice();
+      next[idx] = {
+        ...prev[idx],
+        nextAction: created,
+      };
+
+      return next;
+    });
+
+    return created;
+  },
+  []
+);
+
   const archiveRequest = useCallback<AppStoreDataSlice['archiveRequest']>(async (requestId) => {
     const repo = repositoryRef.current;
     await repo.archiveRequest(requestId);
@@ -268,9 +295,10 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       archiveContact,
       addRequest,
       updateRequest,
+      createRequestAction,
       archiveRequest,
     }),
-    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, archiveRequest]
+    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, createRequestAction, archiveRequest]
   );
 
   const value: AppStoreValue = useMemo(
