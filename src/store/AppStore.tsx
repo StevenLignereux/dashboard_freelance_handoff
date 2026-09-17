@@ -17,7 +17,7 @@ import {
 } from 'react';
 import type { Contact, Exchange, Mission, NavItemKey, NextAction, Request } from '../types';
 import { clock } from '../config/clock';
-import type { CreateContactInput, CreateMissionInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateMissionInput, UpdateRequestInput } from '../data/repositories/interface';
+import type { CreateContactInput, CreateMissionInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateMissionInput, UpdateRequestInput, UpdateRequestActionInput } from '../data/repositories/interface';
 import { createRepository } from '../data/repositories/factory';
 
 interface AppStoreDataSlice {
@@ -36,6 +36,7 @@ interface AppStoreDataSlice {
   createMission: (input: CreateMissionInput) => Promise<Mission>;
   updateMission: (missionId: string, input: UpdateMissionInput) => Promise<Mission>;
   createRequestAction: (input: CreateRequestActionInput) => Promise<NextAction>;
+  updateRequestAction: (actionId: string, input: UpdateRequestActionInput) => Promise<NextAction>;
   archiveRequest: (requestId: string) => Promise<void>;
 }
 
@@ -269,6 +270,29 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
   []
 );
 
+  const updateRequestAction = useCallback<AppStoreDataSlice['updateRequestAction']>(
+    async (actionId, input) => {
+      const repo = repositoryRef.current;
+      const updated = await repo.updateRequestAction(actionId, input);
+
+      setRequests((prev) => {
+        const idx = prev.findIndex((request) => request.nextAction?.id === actionId);
+        if (idx === -1) return prev;
+
+        const next = prev.slice();
+        next[idx] = {
+          ...prev[idx],
+          nextAction: updated,
+        };
+
+        return next;
+      });
+
+      return updated;
+    },
+    []
+  );
+
   const archiveRequest = useCallback<AppStoreDataSlice['archiveRequest']>(async (requestId) => {
     const repo = repositoryRef.current;
     await repo.archiveRequest(requestId);
@@ -330,9 +354,10 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       createMission,
       updateMission,
       createRequestAction,
+      updateRequestAction,
       archiveRequest,
     }),
-    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, createMission, updateMission, createRequestAction, archiveRequest]
+    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, createMission, updateMission, createRequestAction, updateRequestAction, archiveRequest]
   );
 
   const value: AppStoreValue = useMemo(
