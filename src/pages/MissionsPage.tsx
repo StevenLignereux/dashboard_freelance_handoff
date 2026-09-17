@@ -198,7 +198,7 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
   const hasActiveSearch = store.search.query.trim().length > 0;
 
   const emptyStateConfig = useMemo(() => {
-    if (hasActiveSearch) {
+    if (hasActiveSearch && allFilteredItems.length === 0) {
       return {
         title: 'Aucun résultat',
         description: 'Aucune mission ne correspond à ta recherche.'
@@ -220,7 +220,7 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
       title: 'Aucune mission trouvée',
       description: 'Les missions apparaîtront ici une fois liées à une demande.'
     };
-  }, [currentView, hasActiveSearch]);
+  }, [currentView, hasActiveSearch, allFilteredItems.length]);
 
   const viewOptions: { value: FilterView; label: string; count: number }[] = [
     { value: 'following', label: 'À suivre', count: viewCounts.following },
