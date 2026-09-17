@@ -146,11 +146,10 @@ export function ContactsSection({
               type="button"
               onClick={() => { setActionOnly((v) => !v); }}
               aria-label="À action"
-              className={`btn-ghost !py-1.5 !px-3 text-xs ${
-                actionOnly
+              className={`btn-ghost !py-1.5 !px-3 text-xs ${actionOnly
                   ? 'bg-brand-coral/10 text-brand-coral ring-1 ring-brand-coral/25'
                   : ''
-              }`}
+                }`}
               aria-pressed={actionOnly}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -210,9 +209,8 @@ export function ContactsSection({
             >
               {f.key !== 'all' && (
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    relationshipMeta[f.key].dotColor
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full ${relationshipMeta[f.key].dotColor
+                    }`}
                   aria-hidden="true"
                 />
               )}
@@ -226,79 +224,79 @@ export function ContactsSection({
       <div
         className="rounded-3xl bg-bg-surface2/60 border border-brand-violet/10 shadow-card p-4 sm:p-6 lg:p-7"
       >
-      {shown.length === 0 ? (
-        !compact && viewMode === 'cards' && !hasAnyContact && noFiltersApplied ? (
+        {shown.length === 0 ? (
+          !compact && viewMode === 'cards' && !hasAnyContact && noFiltersApplied ? (
+            <div
+              className="grid gap-6 sm:gap-7 grid-cols-1 justify-items-stretch"
+              style={{
+                gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
+              }}
+            >
+              <NewContactCard onClick={onOpenCreate} variant="hero" />
+            </div>
+          ) : (
+            <EmptyState
+              title={
+                !hasAnyContact
+                  ? 'Aucun contact pour le moment'
+                  : 'Aucun contact trouvé'
+              }
+              description={
+                !hasAnyContact
+                  ? 'Commencez votre classeur en créant votre premier contact.'
+                  : 'Modifiez vos filtres ou votre recherche pour afficher plus de résultats.'
+              }
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              }
+            />
+          )
+        ) : viewMode === 'cards' ? (
           <div
-            className="grid gap-6 sm:gap-7 grid-cols-1 justify-items-stretch"
+            className="grid gap-6 sm:gap-7 grid-cols-1"
             style={{
               gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
             }}
           >
-            <NewContactCard onClick={onOpenCreate} variant="hero" />
+            {shown.map((c) => {
+              const req = getActiveRequestForContact({
+                contactId: c.id,
+                requests: store.data.requests,
+              });
+              return (
+                <ContactCard
+                  key={c.id}
+                  contact={c}
+                  activeRequest={req}
+                  isActive={activeContactId === c.id}
+                  onOpen={onOpenContact}
+                />
+              );
+            })}
+            {!compact && <NewContactCard onClick={onOpenCreate} variant="inline" />}
           </div>
         ) : (
-          <EmptyState
-            title={
-              !hasAnyContact
-                ? 'Aucun contact pour le moment'
-                : 'Aucun contact trouvé'
-            }
-            description={
-              !hasAnyContact
-                ? 'Commencez votre classeur en créant votre premier contact.'
-                : 'Modifiez vos filtres ou votre recherche pour afficher plus de résultats.'
-            }
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            }
-          />
-        )
-      ) : viewMode === 'cards' ? (
-        <div
-          className="grid gap-6 sm:gap-7 grid-cols-1"
-          style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
-          }}
-        >
-          {shown.map((c) => {
-            const req = getActiveRequestForContact({
-              contactId: c.id,
-              requests: store.data.requests,
-            });
-            return (
-              <ContactCard
-                key={c.id}
-                contact={c}
-                activeRequest={req}
-                isActive={activeContactId === c.id}
-                onOpen={onOpenContact}
-              />
-            );
-          })}
-          {!compact && <NewContactCard onClick={onOpenCreate} variant="inline" />}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {shown.map((c) => {
-            const req = getActiveRequestForContact({
-              contactId: c.id,
-              requests: store.data.requests,
-            });
-            return (
-              <ContactListItem
-                key={c.id}
-                contact={c}
-                activeRequest={req}
-                isActive={activeContactId === c.id}
-                onOpen={onOpenContact}
-              />
-            );
-          })}
-        </div>
-      )}
+          <div className="space-y-3">
+            {shown.map((c) => {
+              const req = getActiveRequestForContact({
+                contactId: c.id,
+                requests: store.data.requests,
+              });
+              return (
+                <ContactListItem
+                  key={c.id}
+                  contact={c}
+                  activeRequest={req}
+                  isActive={activeContactId === c.id}
+                  onOpen={onOpenContact}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -486,9 +484,10 @@ function NewContactCard({
           <div className="flex items-center justify-center gap-2">
             <span className="chip bg-brand-violet/10 text-slate-700 ring-1 ring-brand-violet/20 inline-flex items-center gap-1.5 px-3 py-1 text-xs">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              C'est parti
+              Ajouter la carte
             </span>
           </div>
         </div>
