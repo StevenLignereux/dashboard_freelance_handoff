@@ -20,7 +20,7 @@ interface ContactsSectionProps {
 
 const RELATIONSHIP_FILTERS: { key: RelationshipType | 'all'; label: string }[] = [
   { key: 'all', label: 'Tous' },
-  { key: 'prospect', label: 'Prospects' },
+  { key: 'prospect', label: 'Premiers contacts' },
   { key: 'client', label: 'Clients' },
   { key: 'client_recurrent', label: 'Récurrents' },
   { key: 'ancien_client', label: 'Anciens' },
@@ -470,7 +470,7 @@ function NewContactCard({
               Première carte
             </div>
             <p className="text-[14px] leading-snug font-medium text-slate-800 line-clamp-2">
-              Prospect, client ou simple rencontre : ajoutez une personne.
+              Premier contact, client ou simple rencontre : ajoutez une personne.
             </p>
           </div>
           <div className="shrink-0">
@@ -486,10 +486,9 @@ function NewContactCard({
           <div className="flex items-center justify-center gap-2">
             <span className="chip bg-brand-violet/10 text-slate-700 ring-1 ring-brand-violet/20 inline-flex items-center gap-1.5 px-3 py-1 text-xs">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
-              Ajouter la carte
+              C'est parti
             </span>
           </div>
         </div>

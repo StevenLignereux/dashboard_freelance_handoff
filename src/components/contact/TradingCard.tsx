@@ -100,17 +100,8 @@ export function TradingCard({
         className={`relative h-full w-full ${pad} flex flex-col ${gapY} min-h-0`}
         style={{ zIndex: 2 }}
       >
-        <div className="flex items-start justify-between gap-2 shrink-0">
+        <div className="flex items-start shrink-0">
           <RelationshipBadge relationship={contact.relationship} withDot />
-          <span
-            className={`${dense ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full shrink-0`}
-            style={{
-              background: haloColor,
-              boxShadow: `0 0 14px ${haloColor}, 0 0 4px ${haloColor}`,
-            }}
-            aria-hidden="true"
-            title={meta.label}
-          />
         </div>
 
         <div className="flex flex-col items-center text-center shrink-0 min-w-0">
