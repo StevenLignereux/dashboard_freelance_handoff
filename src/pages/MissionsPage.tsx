@@ -29,15 +29,20 @@ function MissionCard({ mission, contactName, onOpenContact, onEditMission }: { m
   const meta = missionStatusMeta[mission.status];
   const progress = mission.progress ?? 0;
   const [completing, setCompleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isTerminee = mission.status === 'terminee';
 
   const handleMarkComplete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isTerminee || completing) return;
+    setActionError(null);
     setCompleting(true);
     try {
       await store.data.updateMission(mission.id, { status: 'terminee', progress: 100 });
+    } catch (err) {
+      console.error('Failed to complete mission:', err);
+      setActionError('Impossible de terminer la mission. Vérifie ta connexion et réessaie.');
     } finally {
       setCompleting(false);
     }
@@ -90,6 +95,11 @@ function MissionCard({ mission, contactName, onOpenContact, onEditMission }: { m
       {mission.notes && (
         <p className="text-xs text-slate-400 line-clamp-2 pt-1 border-t border-brand-violet/10">
           {mission.notes}
+        </p>
+      )}
+      {actionError && (
+        <p className="text-xs text-brand-coral pt-1 border-t border-brand-violet/10" role="alert">
+          {actionError}
         </p>
       )}
       <div className="flex items-center justify-end gap-2 pt-1 border-t border-brand-violet/10 mt-1" onClick={(e) => { e.stopPropagation(); }}>
