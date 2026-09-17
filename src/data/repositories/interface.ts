@@ -65,6 +65,12 @@ export interface CreateRequestActionInput {
   dueDate: string;
 }
 
+export interface UpdateRequestActionInput {
+  type?: NextActionType;
+  label?: string;
+  dueDate?: string;
+}
+
 export interface IRepository {
   /**
    * Charge tous les contacts avec leurs données dérivées.

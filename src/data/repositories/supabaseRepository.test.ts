@@ -1583,4 +1583,278 @@ describe('SupabaseRepository', () => {
       );
     });
   });
+
+  describe('createRequestAction (tests 32-35)', () => {
+  it('32. creates request action and maps it to NextAction', async () => {
+    const dueDate = '2024-01-10T10:00:00Z';
+
+    const createdActionDb = {
+      id: 'a-1',
+      request_id: 'r-1',
+      user_id: 'u-1',
+      type: 'appel',
+      label: 'Appeler client',
+      due_at: dueDate,
+      completed_at: null,
+      created_at: '2024-01-05',
+      updated_at: '2024-01-05',
+    };
+
+    const capturedRows: Record<string, unknown>[] = [];
+
+    const sb = repository as unknown as {
+      getSupabase: () => unknown;
+    };
+
+    sb.getSupabase = () => ({
+      auth: {
+        getUser: () =>
+          Promise.resolve({
+            data: { user: { id: 'u-1' } },
+            error: null,
+          }),
+      },
+
+      from: (table: string) => {
+        if (table === 'requests') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      id: 'r-1',
+                      archived: false,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'request_actions') {
+          return {
+            insert: (row: Record<string, unknown>) => {
+              capturedRows.push({ ...row });
+
+              return {
+                select: () => ({
+                  single: () =>
+                    Promise.resolve({
+                      data: createdActionDb,
+                      error: null,
+                    }),
+                }),
+              };
+            },
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    const result = await repository.createRequestAction({
+      requestId: 'r-1',
+      type: 'appel',
+      label: 'Appeler client',
+      dueDate,
+    });
+
+    expect(capturedRows).toHaveLength(1);
+
+    expect(capturedRows[0]).toEqual({
+      user_id: 'u-1',
+      request_id: 'r-1',
+      type: 'appel',
+      label: 'Appeler client',
+      due_at: dueDate,
+      completed_at: null,
+    });
+
+    expect(result).toEqual({
+      id: 'a-1',
+      type: 'appel',
+      label: 'Appeler client',
+      dueDate,
+    });
+  });
+
+  it('33. rejects when request does not exist and does not insert', async () => {
+    const insertAction = vi.fn();
+
+    const sb = repository as unknown as {
+      getSupabase: () => unknown;
+    };
+
+    sb.getSupabase = () => ({
+      auth: {
+        getUser: () =>
+          Promise.resolve({
+            data: { user: { id: 'u-1' } },
+            error: null,
+          }),
+      },
+
+      from: (table: string) => {
+        if (table === 'requests') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: null,
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'request_actions') {
+          return {
+            insert: insertAction,
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    await expect(
+      repository.createRequestAction({
+        requestId: 'r-absent',
+        type: 'appel',
+        label: 'Test',
+        dueDate: '2024-01-10T10:00:00Z',
+      })
+    ).rejects.toThrow(/request id=r-absent not found/);
+
+    expect(insertAction).not.toHaveBeenCalled();
+  });
+
+  it('34. rejects when request is archived and does not insert', async () => {
+    const insertAction = vi.fn();
+
+    const sb = repository as unknown as {
+      getSupabase: () => unknown;
+    };
+
+    sb.getSupabase = () => ({
+      auth: {
+        getUser: () =>
+          Promise.resolve({
+            data: { user: { id: 'u-1' } },
+            error: null,
+          }),
+      },
+
+      from: (table: string) => {
+        if (table === 'requests') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      id: 'r-archived',
+                      archived: true,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'request_actions') {
+          return {
+            insert: insertAction,
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    await expect(
+      repository.createRequestAction({
+        requestId: 'r-archived',
+        type: 'appel',
+        label: 'Test',
+        dueDate: '2024-01-10T10:00:00Z',
+      })
+    ).rejects.toThrow(/request id=r-archived is archived/);
+
+    expect(insertAction).not.toHaveBeenCalled();
+  });
+
+  it('35. propagates request_actions insert error', async () => {
+    const sb = repository as unknown as {
+      getSupabase: () => unknown;
+    };
+
+    sb.getSupabase = () => ({
+      auth: {
+        getUser: () =>
+          Promise.resolve({
+            data: { user: { id: 'u-1' } },
+            error: null,
+          }),
+      },
+
+      from: (table: string) => {
+        if (table === 'requests') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      id: 'r-1',
+                      archived: false,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'request_actions') {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: null,
+                    error: {
+                      message:
+                        'Unique index violation: only one open action per request',
+                    },
+                  }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    await expect(
+      repository.createRequestAction({
+        requestId: 'r-1',
+        type: 'appel',
+        label: 'Test',
+        dueDate: '2024-01-10T10:00:00Z',
+      })
+    ).rejects.toThrow(
+      /Failed to create request action for request id=r-1: Unique index violation/
+    );
+  });
+});
+
+
 });

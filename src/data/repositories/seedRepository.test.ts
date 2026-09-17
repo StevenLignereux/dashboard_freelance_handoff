@@ -506,4 +506,152 @@ describe('SeedRepository', () => {
       await expect(repo.archiveRequest('r-unknown-xyz')).rejects.toThrow(/id=r-unknown-xyz not found/);
     });
   });
+
+  describe('createRequestAction', () => {
+  it('creates an action on a non-archived request with no open action, returns and persists the NextAction', async () => {
+  const repo = new SeedRepository();
+
+  const contacts = await repo.loadContacts();
+  const contact = contacts.find((item) => !item.archived);
+
+  expect(contact).toBeDefined();
+
+  if (!contact) {
+    throw new Error('missing non-archived contact');
+  }
+
+  const existingRequests = await repo.loadRequests();
+
+  for (const request of existingRequests) {
+    if (
+      request.contactId === contact.id &&
+      !request.archived &&
+      request.status !== 'sans_suite'
+    ) {
+      await repo.archiveRequest(request.id);
+    }
+  }
+
+  const target = await repo.createRequest({
+    contactId: contact.id,
+    title: 'Request for action test',
+  });
+
+  expect(target.nextAction).toBeUndefined();
+
+  const actionType = 'appel' as const;
+  const actionLabel = 'Call client to confirm details';
+  const dueDate = new Date(Date.now() + 86400000).toISOString();
+
+  const createdAction = await repo.createRequestAction({
+    requestId: target.id,
+    type: actionType,
+    label: actionLabel,
+    dueDate,
+  });
+
+  expect(createdAction).toBeDefined();
+  expect(createdAction.type).toBe(actionType);
+  expect(createdAction.label).toBe(actionLabel);
+  expect(createdAction.dueDate).toBe(dueDate);
+
+  const updatedReqs = await repo.loadRequests();
+  const updatedRequest = updatedReqs.find(
+    (request) => request.id === target.id
+  );
+
+  expect(updatedRequest?.nextAction).toBeDefined();
+  expect(updatedRequest?.nextAction?.id).toBe(createdAction.id);
+  expect(updatedRequest?.nextAction?.type).toBe(actionType);
+  expect(updatedRequest?.nextAction?.label).toBe(actionLabel);
+  expect(updatedRequest?.nextAction?.dueDate).toBe(dueDate);
+});
+
+it('rejects creating a second action for the same request, error mentions open action exists', async () => {
+  const repo = new SeedRepository();
+
+  const contacts = await repo.loadContacts();
+  const contact = contacts.find((item) => !item.archived);
+
+  expect(contact).toBeDefined();
+
+  if (!contact) {
+    throw new Error('missing non-archived contact');
+  }
+
+  const existingRequests = await repo.loadRequests();
+
+  for (const request of existingRequests) {
+    if (
+      request.contactId === contact.id &&
+      !request.archived &&
+      request.status !== 'sans_suite'
+    ) {
+      await repo.archiveRequest(request.id);
+    }
+  }
+
+  const target = await repo.createRequest({
+    contactId: contact.id,
+    title: 'Request for duplicate action test',
+  });
+
+  await repo.createRequestAction({
+    requestId: target.id,
+    type: 'appel',
+    label: 'First action',
+    dueDate: new Date(Date.now() + 86400000).toISOString(),
+  });
+
+  await expect(
+    repo.createRequestAction({
+      requestId: target.id,
+      type: 'devis',
+      label: 'Second action',
+      dueDate: new Date(Date.now() + 172800000).toISOString(),
+    })
+  ).rejects.toThrow(/already has an open action/);
+});
+
+  it('rejects creating an action for an archived request', async () => {
+    const repo = new SeedRepository();
+    const reqs = await repo.loadRequests();
+
+    const target = reqs.find((request) => !request.archived);
+
+    expect(target).toBeDefined();
+
+    if (!target) {
+      throw new Error('missing non-archived request');
+    }
+
+    await repo.archiveRequest(target.id);
+
+    await expect(
+      repo.createRequestAction({
+        requestId: target.id,
+        type: 'appel',
+        label: 'Action on archived',
+        dueDate: new Date(Date.now() + 86400000).toISOString(),
+      })
+    ).rejects.toThrow(/is archived/);
+  });
+
+  it('rejects creating an action for an unknown request id', async () => {
+    const repo = new SeedRepository();
+
+    await expect(
+      repo.createRequestAction({
+        requestId: 'r-unknown-123',
+        type: 'appel',
+        label: 'Action on unknown',
+        dueDate: new Date(Date.now() + 86400000).toISOString(),
+      })
+    ).rejects.toThrow(/id=r-unknown-123 not found/);
+  });
+});
+
+  
+
+  
 });
