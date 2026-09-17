@@ -161,20 +161,20 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
             aria-label="Créer une demande"
             tabIndex={-1}
             className="relative z-10 w-full max-w-2xl rounded-3xl surface backdrop-blur-xl p-6 sm:p-8
-              ring-1 ring-white/10 shadow-[0_60px_120px_-20px_rgba(0,0,0,0.9),0_20px_60px_-10px_rgba(124,92,255,0.2)]"
+              ring-1 ring-brand-violet/20 shadow-[0_60px_120px_-20px_rgba(15,23,42,0.6),0_20px_60px_-10px_rgba(124,92,255,0.2)]"
             initial={reduced ? { opacity: 0, scale: 0.96 } : { opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={reduced ? { opacity: 0, scale: 0.96 } : { opacity: 0, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26 }}
           >
             <form onSubmit={handleSubmit} className="space-y-5">
-              <h2 className="font-display font-bold text-white text-2xl leading-tight">
+              <h2 className="font-display font-bold text-slate-900 text-2xl leading-tight">
                 Nouvelle demande
               </h2>
 
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-slate-500">
                 Pour le contact{' '}
-                <span className="text-slate-200 font-medium">
+                <span className="text-slate-800 font-medium">
                   {contact.firstName} {contact.lastName}
                   {contact.company ? ` · ${contact.company}` : ''}
                 </span>
@@ -182,7 +182,7 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
 
               <div>
                 <label className="block">
-                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
                     Titre <span className="text-brand-coral">*</span>
                   </span>
                   <input
@@ -199,7 +199,7 @@ export function RequestCreateModal({ contact, onClose }: RequestCreateModalProps
 
               <div>
                 <label className="block">
-                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
                     Description
                   </span>
                   <textarea

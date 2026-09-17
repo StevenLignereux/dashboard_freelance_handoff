@@ -60,6 +60,10 @@ function buildRepository(overrides?: Partial<IRepository>, customRequests?: Requ
         createRequestAction: createRequestActionSpy,
         updateRequestAction: () =>
             Promise.reject(new Error('not implemented')),
+        createMission: () =>
+            Promise.reject(new Error('not implemented')),
+        updateMission: () =>
+            Promise.reject(new Error('not implemented')),
         ...overrides,
         createRequestActionSpy,
     };

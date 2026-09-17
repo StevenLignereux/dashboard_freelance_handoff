@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '../store/AppStore';
 import { EmptyState } from '../components/ui/EmptyState';
 import type { Mission } from '../types';
@@ -20,32 +20,61 @@ function toneClasses(tone: 'green' | 'violet' | 'slate' | 'amber'): string {
     case 'amber':
       return 'bg-brand-amber/15 text-brand-amber ring-brand-amber/30';
     case 'slate':
-      return 'bg-white/10 text-slate-300 ring-white/10';
+      return 'bg-brand-violet/10 text-slate-700 ring-brand-violet/20';
   }
 }
 
-function MissionCard({ mission, contactName, onOpenContact }: { mission: Mission; contactName: string; onOpenContact: (id: string | OpenContactPayload) => void }) {
+function MissionCard({ mission, contactName, onOpenContact, onEditMission }: { mission: Mission; contactName: string; onOpenContact: (id: string | OpenContactPayload) => void; onEditMission: (missionId: string) => void }) {
+  const store = useAppStore();
   const meta = missionStatusMeta[mission.status];
   const progress = mission.progress ?? 0;
+  const [completing, setCompleting] = useState(false);
+
+  const isTerminee = mission.status === 'terminee';
+
+  const handleMarkComplete = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isTerminee || completing) return;
+    setCompleting(true);
+    try {
+      await store.data.updateMission(mission.id, { status: 'terminee', progress: 100 });
+    } finally {
+      setCompleting(false);
+    }
+  }, [store.data, mission.id, isTerminee, completing]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEditMission(mission.id);
+  }, [onEditMission, mission.id]);
+
   return (
-    <button
+    <div
+      className="group surface p-5 text-left hover:ring-brand-violet/30 transition-all active:scale-[0.998] flex flex-col gap-3 cursor-pointer"
       onClick={() => { onOpenContact(mission.contactId); }}
-      className="group surface p-5 text-left hover:ring-brand-violet/30 transition-all active:scale-[0.998] flex flex-col gap-3"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenContact(mission.contactId);
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-display font-semibold text-white truncate">{mission.title}</h3>
-          <p className="text-sm text-slate-400 truncate">{contactName}</p>
+          <h3 className="font-display font-semibold text-slate-900 truncate">{mission.title}</h3>
+          <p className="text-sm text-slate-500 truncate">{contactName}</p>
         </div>
         <span className={`chip shrink-0 ring-1 ${toneClasses(meta.tone)}`}>{meta.label}</span>
       </div>
       <div>
         <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="text-slate-400">Progression</span>
-          <span className="font-display font-bold text-slate-200 tabular-nums">{progress}%</span>
+          <span className="text-slate-500">Progression</span>
+          <span className="font-display font-bold text-slate-800 tabular-nums">{progress}%</span>
         </div>
         <div
-          className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden"
+          className="h-1.5 w-full rounded-full bg-brand-violet/10 overflow-hidden"
           role="progressbar"
           aria-valuenow={progress}
           aria-valuemin={0}
@@ -59,19 +88,52 @@ function MissionCard({ mission, contactName, onOpenContact }: { mission: Mission
         </div>
       </div>
       {mission.notes && (
-        <p className="text-xs text-slate-500 line-clamp-2 pt-1 border-t border-white/5">
+        <p className="text-xs text-slate-400 line-clamp-2 pt-1 border-t border-brand-violet/10">
           {mission.notes}
         </p>
       )}
-    </button>
+      <div className="flex items-center justify-end gap-2 pt-1 border-t border-brand-violet/10 mt-1" onClick={(e) => { e.stopPropagation(); }}>
+        <button
+          type="button"
+          onClick={handleEdit}
+          className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-brand-violet/10"
+          aria-label={`Modifier la mission ${mission.title}`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+          </svg>
+          Modifier
+        </button>
+        <button
+          type="button"
+          onClick={handleMarkComplete}
+          disabled={isTerminee || completing}
+          className={`btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 ring-1 ${isTerminee ? 'ring-slate-500/15 text-slate-400 cursor-not-allowed' : 'ring-brand-green/30 text-brand-green hover:bg-brand-green/10'}`}
+          aria-label={isTerminee ? 'Mission déjà terminée' : `Marquer ${mission.title} comme terminée`}
+        >
+          {completing ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+          {isTerminee ? 'Terminée' : 'Marquer terminée'}
+        </button>
+      </div>
+    </div>
   );
 }
 
 interface MissionsPageProps {
   onOpenContact: (contactId: string | OpenContactPayload) => void;
+  onEditMission: (missionId: string) => void;
 }
 
-export function MissionsPage({ onOpenContact }: MissionsPageProps) {
+export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps) {
   const store = useAppStore();
 
   const items = useMemo(() => {
@@ -101,15 +163,30 @@ export function MissionsPage({ onOpenContact }: MissionsPageProps) {
     <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <h1 className="font-display font-bold text-white text-2xl sm:text-3xl tracking-tight">
+          <h1 className="font-display font-bold text-slate-900 text-2xl sm:text-3xl tracking-tight">
             Missions
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Vue d&rsquo;ensemble des missions en cours, à démarrer et terminées.
           </p>
         </div>
-        <div className="chip bg-brand-green/15 text-brand-green ring-1 ring-brand-green/30">
-          {items.filter((i) => i.mission.status === 'en_cours').length} en cours
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="chip bg-brand-green/15 text-brand-green ring-1 ring-brand-green/30">
+            {items.filter((i) => i.mission.status === 'en_cours').length} en cours
+          </div>
+          <button
+            type="button"
+            disabled
+            className="btn-ghost !py-2 !px-3.5 text-sm inline-flex items-center gap-2 cursor-not-allowed text-slate-400"
+            title="Créez une mission depuis la fiche contact, section Demande"
+            aria-disabled="true"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Nouvelle mission
+          </button>
         </div>
       </header>
 
@@ -130,6 +207,7 @@ export function MissionsPage({ onOpenContact }: MissionsPageProps) {
                 mission={mission}
                 contactName={contactName}
                 onOpenContact={onOpenContact}
+                onEditMission={onEditMission}
               />
             );
           })}

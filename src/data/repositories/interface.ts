@@ -71,6 +71,22 @@ export interface UpdateRequestActionInput {
   dueDate?: string;
 }
 
+export interface CreateMissionInput {
+  requestId: string;
+  contactId: string;
+  title: string;
+  status?: Mission['status'];
+  progress?: number;
+  notes?: string | null;
+}
+
+export interface UpdateMissionInput {
+  title?: string;
+  status?: Mission['status'];
+  progress?: number;
+  notes?: string | null;
+}
+
 export interface IRepository {
   /**
    * Charge tous les contacts avec leurs données dérivées.
@@ -127,5 +143,7 @@ export interface IRepository {
 
   createRequest(input: CreateRequestInput): Promise<Request>;
   updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request>;
+  createMission(input: CreateMissionInput): Promise<Mission>;
+  updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission>;
   archiveRequest(requestId: string): Promise<void>;
 }

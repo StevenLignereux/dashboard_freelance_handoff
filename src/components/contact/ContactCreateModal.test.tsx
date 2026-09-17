@@ -22,6 +22,10 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
     updateRequestAction: () =>
       Promise.reject(new Error('not implemented')),
+    createMission: () =>
+      Promise.reject(new Error('not implemented')),
+    updateMission: () =>
+      Promise.reject(new Error('not implemented')),
     ...overrides,
   };
 }

@@ -32,13 +32,13 @@ export function DashboardPage({
     <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 space-y-10 max-w-[1600px] mx-auto">
       <section className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="font-display font-bold text-white text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight">
+          <h1 className="font-display font-bold text-slate-900 text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight">
             Bonjour {currentUser.firstName} !{' '}
             <span aria-hidden="true" className="text-brand-amber">
               👋
             </span>
           </h1>
-          <p className="text-slate-400 text-sm sm:text-base">
+          <p className="text-slate-500 text-sm sm:text-base">
             <span className="text-brand-violet font-semibold">
               {totalAttention} {pluralize(totalAttention, 'chose')}
             </span>{' '}
@@ -46,7 +46,7 @@ export function DashboardPage({
           </p>
         </div>
         <blockquote className="hidden lg:block text-right max-w-sm">
-          <p className="text-slate-500 text-sm italic leading-relaxed">
+          <p className="text-slate-400 text-sm italic leading-relaxed">
             <span className="text-brand-violet/60 text-3xl leading-none align-[-8px] font-serif">
               “
             </span>

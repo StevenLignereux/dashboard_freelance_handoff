@@ -14,6 +14,8 @@ import { RequestCreateModal } from './components/request/RequestCreateModal';
 import { RequestEditModal } from './components/request/RequestEditModal';
 import { RequestArchiveConfirmation } from './components/request/RequestArchiveConfirmation';
 import { RequestActionCreateModal } from './components/request/RequestActionCreateModal';
+import { MissionCreateModal } from './components/mission/MissionCreateModal';
+import { MissionEditModal } from './components/mission/MissionEditModal';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginPage } from './pages/LoginPage';
 
@@ -28,7 +30,7 @@ function DataLoadingFallback() {
       role="status"
       aria-live="polite"
       aria-label="Chargement des données"
-      className="flex flex-col items-center justify-center py-24 gap-3 text-slate-300"
+      className="flex flex-col items-center justify-center py-24 gap-3 text-slate-700"
     >
       <div className="w-8 h-8 rounded-full border-2 border-brand-violet/40 border-t-brand-violet animate-spin" aria-hidden="true" />
       <p className="text-sm">Chargement des données…</p>
@@ -46,7 +48,7 @@ function DataErrorFallback({ message, onRetry }: DataErrorFallbackProps) {
     <div
       role="alert"
       aria-live="assertive"
-      className="mx-auto mt-16 max-w-lg w-full p-5 rounded-2xl bg-bg-surface/70 border border-white/10"
+      className="mx-auto mt-16 max-w-lg w-full p-5 rounded-2xl bg-bg-surface/70 border border-brand-violet/20"
     >
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 shrink-0 rounded-xl bg-brand-coral/15 border border-brand-coral/20 flex items-center justify-center" aria-hidden="true">
@@ -57,11 +59,11 @@ function DataErrorFallback({ message, onRetry }: DataErrorFallbackProps) {
           </svg>
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="font-display font-semibold text-white text-base leading-tight">
+          <h2 className="font-display font-semibold text-slate-900 text-base leading-tight">
             Impossible de charger les données.
           </h2>
           {message && (
-            <p className="mt-1 text-xs text-slate-400">{message}</p>
+            <p className="mt-1 text-xs text-slate-500">{message}</p>
           )}
           <button
             type="button"
@@ -84,7 +86,7 @@ function DataErrorFallback({ message, onRetry }: DataErrorFallbackProps) {
 
 function AuthLoadingFallback() {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-3 px-4 text-slate-300">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center gap-3 px-4 text-slate-700">
       <div
         className="w-9 h-9 rounded-full border-2 border-brand-violet/40 border-t-brand-violet animate-spin"
         aria-hidden="true"
@@ -108,11 +110,14 @@ function Router() {
   const [archivingRequestId, setArchivingRequestId] = useState<string | null>(null);
   const [preRequestPayload, setPreRequestPayload] = useState<OpenContactPayload | null>(null);
   const [creatingRequestActionForRequestId, setCreatingRequestActionForRequestId] = useState<string | null>(null);
+  const [creatingMissionRequestId, setCreatingMissionRequestId] = useState<string | null>(null);
+  const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   type PendingRequestModal =
     | { type: 'create'; contactId: string }
     | { type: 'edit'; requestId: string }
     | { type: 'archive'; requestId: string }
     | { type: 'action'; requestId: string }
+    | { type: 'mission-create'; requestId: string }
     | null;
   const [pendingRequestModal, setPendingRequestModal] = useState<PendingRequestModal>(null);
 
@@ -194,6 +199,9 @@ function Router() {
       case 'action':
         setCreatingRequestActionForRequestId(pending.requestId);
         break;
+      case 'mission-create':
+        setCreatingMissionRequestId(pending.requestId);
+        break;
     }
   }, [pendingRequestModal]);
 
@@ -271,6 +279,33 @@ function Router() {
     }
   }, [preRequestPayload]);
 
+  const handleCreateMission = useCallback((requestId: string) => {
+    const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
+    if (!contactId) return;
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
+    setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'mission-create', requestId });
+    setActiveContact(null);
+  }, [store.data.requests, activeContact]);
+
+  const handleCancelCreateMission = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setCreatingMissionRequestId(null);
+    setPendingRequestModal(null);
+    setPreRequestPayload(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preRequestPayload]);
+
+  const handleEditMission = useCallback((missionId: string) => {
+    setEditingMissionId(missionId);
+  }, []);
+
+  const handleCancelEditMission = useCallback(() => {
+    setEditingMissionId(null);
+  }, []);
+
   const handleArchivedRequest = useCallback(() => {
     setArchivingRequestId(null);
     setActiveContact(null);
@@ -305,7 +340,7 @@ function Router() {
             <RequestsPage onOpenContact={handleOpenContact} />
           )}
           {store.nav.active === 'missions' && (
-            <MissionsPage onOpenContact={handleOpenContact} />
+            <MissionsPage onOpenContact={handleOpenContact} onEditMission={handleEditMission} />
           )}
           {store.nav.active === 'settings' && <SettingsPage />}
           <ContactCardModal
@@ -319,6 +354,7 @@ function Router() {
             onEditRequest={handleEditRequest}
             onArchiveRequest={handleArchiveRequest}
             onCreateRequestAction={handleCreateRequestAction}
+            onCreateMission={handleCreateMission}
           />
           <ContactCreateModal
             open={createOpen}
@@ -350,6 +386,15 @@ function Router() {
             requestId={creatingRequestActionForRequestId}
             onClose={handleCancelCreateRequestAction}
           />
+          <MissionCreateModal
+            contactId={creatingMissionRequestId ? (store.data.requests.find((r) => r.id === creatingMissionRequestId)?.contactId ?? null) : null}
+            requestId={creatingMissionRequestId}
+            onClose={handleCancelCreateMission}
+          />
+          <MissionEditModal
+            missionId={editingMissionId}
+            onClose={handleCancelEditMission}
+          />
         </>
       )}
     </AppShell>
@@ -358,11 +403,11 @@ function Router() {
 
 function AuthErrorFallback({ message }: { message: string }) {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center px-4 py-12 text-slate-300 bg-bg-base">
+    <div className="min-h-screen w-full flex items-center justify-center px-4 py-12 text-slate-700 bg-bg-base">
       <div
         role="alert"
         aria-live="assertive"
-        className="mx-auto w-full max-w-md rounded-2xl bg-bg-surface/70 border border-white/10 p-6 shadow-2xl shadow-black/40"
+        className="mx-auto w-full max-w-md rounded-2xl bg-bg-surface/70 border border-brand-violet/20 p-6 shadow-2xl shadow-slate-900/25"
       >
         <div className="flex items-start gap-4">
           <div className="w-11 h-11 shrink-0 rounded-xl bg-brand-coral/15 border border-brand-coral/20 flex items-center justify-center" aria-hidden="true">
@@ -373,10 +418,10 @@ function AuthErrorFallback({ message }: { message: string }) {
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="font-display font-semibold text-white text-lg leading-tight">
+            <h1 className="font-display font-semibold text-slate-900 text-lg leading-tight">
               Configuration d&rsquo;authentification indisponible
             </h1>
-            <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+            <p className="mt-2 text-sm text-slate-500 leading-relaxed">
               {message}
             </p>
           </div>

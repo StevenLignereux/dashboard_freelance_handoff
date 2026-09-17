@@ -152,7 +152,7 @@ export function ContactCard({
           'h-full w-full rounded-2xl [transition:transform_300ms_cubic-bezier(0.2,0.8,0.2,1),filter_300ms_ease]',
           hoveredRef.current
             ? '[filter:drop-shadow(0_30px_40px_rgba(124,92,255,0.18))]'
-            : '[filter:drop-shadow(0_10px_20px_rgba(0,0,0,0.25))]',
+            : '[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.17))]',
         ].join(' ')}
       >
         <TradingCard

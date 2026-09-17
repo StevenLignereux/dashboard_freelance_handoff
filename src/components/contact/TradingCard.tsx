@@ -115,7 +115,7 @@ export function TradingCard({
 
         <div className="flex flex-col items-center text-center shrink-0 min-w-0">
           <div
-            className={`relative ${avatar} flex items-center justify-center ring-1 ring-white/10 shadow-card shrink-0`}
+            className={`relative ${avatar} flex items-center justify-center ring-1 ring-brand-violet/20 shadow-card shrink-0`}
             style={gradient}
           >
             <div
@@ -141,14 +141,14 @@ export function TradingCard({
           </div>
 
           <h3
-            className={`mt-3 font-display font-bold text-white leading-tight ${h3} truncate max-w-full w-full`}
+            className={`mt-3 font-display font-bold text-slate-900 leading-tight ${h3} truncate max-w-full w-full`}
             title={`${contact.firstName} ${contact.lastName}`}
           >
             {contact.firstName} {contact.lastName}
           </h3>
           {contact.company && (
             <p
-              className={`${company} text-slate-400 mt-0.5 truncate max-w-full w-full`}
+              className={`${company} text-slate-500 mt-0.5 truncate max-w-full w-full`}
               title={contact.company}
             >
               {contact.company}
@@ -162,14 +162,14 @@ export function TradingCard({
           {activeRequest ? (
             <>
               <div className="shrink-0 min-w-0">
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
                   Demande
                 </div>
                 <p
-                  className={`${dense ? 'text-[14px] leading-snug' : 'text-sm'} font-medium text-slate-100 line-clamp-2`}
+                  className={`${dense ? 'text-[14px] leading-snug' : 'text-sm'} font-medium text-slate-800 line-clamp-2`}
                   title={activeRequest.title}
                 >
                   {activeRequest.title}
@@ -190,7 +190,7 @@ export function TradingCard({
               )}
             </>
           ) : (
-            <div className={`${dense ? 'text-[13px]' : 'text-xs'} text-slate-500 italic text-center py-3 shrink-0`}>
+            <div className={`${dense ? 'text-[13px]' : 'text-xs'} text-slate-400 italic text-center py-3 shrink-0`}>
               Aucune demande active
             </div>
           )}
@@ -199,16 +199,16 @@ export function TradingCard({
         <div className="mt-auto shrink-0 min-w-0">
           <div className="divider mb-3 shrink-0" />
           <div
-            className={`flex items-center justify-between gap-2 ${dense ? 'text-[11px]' : 'text-[11px]'} text-slate-400 min-w-0`}
+            className={`flex items-center justify-between gap-2 ${dense ? 'text-[11px]' : 'text-[11px]'} text-slate-500 min-w-0`}
           >
             <span className="inline-flex items-center gap-1.5 min-w-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="font-semibold tabular-nums text-slate-300 shrink-0">
+              <span className="font-semibold tabular-nums text-slate-700 shrink-0">
                 {contact.totalRequests}
               </span>
-              <span className="text-slate-500 truncate min-w-0">
+              <span className="text-slate-400 truncate min-w-0">
                 {pluralize(contact.totalRequests, 'demande')}
               </span>
             </span>
@@ -217,10 +217,10 @@ export function TradingCard({
                 <rect x="2" y="7" width="20" height="14" rx="2" />
                 <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
               </svg>
-              <span className="font-semibold tabular-nums text-slate-300 shrink-0">
+              <span className="font-semibold tabular-nums text-slate-700 shrink-0">
                 {contact.totalMissions}
               </span>
-              <span className="text-slate-500 truncate min-w-0">
+              <span className="text-slate-400 truncate min-w-0">
                 {pluralize(contact.totalMissions, 'mission')}
               </span>
             </span>

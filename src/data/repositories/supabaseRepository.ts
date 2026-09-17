@@ -11,10 +11,12 @@ import { supabase } from '../../lib/supabase/client';
 import type { Contact, Exchange, Mission, NextAction, NextActionType, Request } from '../../types';
 import type {
   CreateContactInput,
+  CreateMissionInput,
   CreateRequestActionInput,
   CreateRequestInput,
   IRepository,
   UpdateContactInput,
+  UpdateMissionInput,
   UpdateRequestActionInput,
   UpdateRequestInput,
 } from './interface';
@@ -638,6 +640,55 @@ export class SupabaseRepository implements IRepository {
     if (!data) {
       throw new Error(`Failed to archive request: no row updated for id=${requestId}`);
     }
+  }
+
+  async createMission(input: CreateMissionInput): Promise<Mission> {
+    this.ensureSupabaseConfigured();
+    const userId = await this.getCurrentUserId();
+    const sb = this.getSupabase();
+    const now = new Date().toISOString();
+    const { data, error } = await sb
+      .from('missions')
+      .insert({
+        user_id: userId,
+        request_id: input.requestId,
+        title: input.title,
+        status: input.status ?? 'a_demarrer',
+        progress: input.progress ?? 0,
+        notes: input.notes ?? null,
+        start_date: now,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(`Failed to create mission: ${error.message}`);
+    return mapMission(data, input.contactId);
+  }
+
+  async updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission> {
+    this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
+    const patch: Partial<DbMission> = {};
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.status !== undefined) patch.status = input.status;
+    if (input.progress !== undefined) patch.progress = input.progress;
+    if (input.notes !== undefined) patch.notes = input.notes ?? null;
+    const { data, error } = await sb
+      .from('missions')
+      .update(patch)
+      .eq('id', missionId)
+      .select()
+      .single();
+    if (error) throw new Error(`Failed to update mission ${missionId}: ${error.message}`);
+    const dbMission = data;
+    const { data: reqData, error: reqErr } = await sb
+      .from('requests')
+      .select('contact_id')
+      .eq('id', dbMission.request_id)
+      .maybeSingle();
+    if (reqErr) throw new Error(`Failed to resolve contact for mission: ${reqErr.message}`);
+    const contactId = reqData?.contact_id;
+    if (!contactId) throw new Error(`Mission ${missionId} réfère une request sans contact_id`);
+    return mapMission(dbMission, contactId);
   }
 }
 

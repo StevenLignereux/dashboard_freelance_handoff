@@ -136,7 +136,7 @@ export function ArchiveConfirmation({ contact, onCancel, onArchived }: ArchiveCo
       />
       <div
         ref={modalRef}
-        className="relative w-full sm:max-w-md bg-bg sm:rounded-2xl border border-white/10 shadow-[0_32px_80px_-20px_rgba(0,0,0,0.8)] animate-slideInRight sm:animate-fadeIn"
+        className="relative w-full sm:max-w-md bg-bg sm:rounded-2xl border border-brand-violet/20 shadow-[0_32px_80px_-20px_rgba(15,23,42,0.53)] animate-slideInRight sm:animate-fadeIn"
         tabIndex={-1}
       >
         <div className="p-5 space-y-4">
@@ -149,11 +149,11 @@ export function ArchiveConfirmation({ contact, onCancel, onArchived }: ArchiveCo
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h2 id="archive-title" className="font-display font-bold text-white text-lg leading-tight">
+              <h2 id="archive-title" className="font-display font-bold text-slate-900 text-lg leading-tight">
                 Archiver ce contact ?
               </h2>
-              <p id="archive-desc" className="text-sm text-slate-400 mt-1.5 leading-relaxed">
-                <span className="text-slate-200 font-medium">{contact.firstName} {contact.lastName}</span>
+              <p id="archive-desc" className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                <span className="text-slate-800 font-medium">{contact.firstName} {contact.lastName}</span>
                 {' '}ne sera plus affiché dans la liste active. Les données sont conservées dans les archives.
               </p>
             </div>
@@ -170,7 +170,7 @@ export function ArchiveConfirmation({ contact, onCancel, onArchived }: ArchiveCo
           )}
         </div>
 
-        <div className="px-5 py-4 border-t border-white/5 flex items-center justify-end gap-2 bg-bg-surface/40 backdrop-blur rounded-b-2xl sm:rounded-b-2xl">
+        <div className="px-5 py-4 border-t border-brand-violet/10 flex items-center justify-end gap-2 bg-bg-surface/40 backdrop-blur rounded-b-2xl sm:rounded-b-2xl">
           <button
             type="button"
             onClick={handleCancel}

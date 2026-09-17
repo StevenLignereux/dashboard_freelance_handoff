@@ -16,14 +16,14 @@ const REL_OPTIONS: RelationshipType[] = [
 ];
 
 const INPUT_CLASS =
-  'w-full h-10 px-3.5 rounded-xl bg-bg-surface/80 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 caret-brand-violet ' +
+  'w-full h-10 px-3.5 rounded-xl bg-bg-surface/80 border border-brand-violet/20 text-sm text-slate-800 placeholder:text-slate-400 caret-brand-violet ' +
   'focus:outline-none focus:ring-2 focus:ring-brand-violet/50 focus:border-brand-violet/50 ' +
-  'transition-all duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+  'transition-all duration-150 shadow-[inset_0_1px_0_rgba(124,92,255,0.04)]';
 
 const TEXTAREA_CLASS =
-  'w-full px-3.5 py-2.5 rounded-xl bg-bg-surface/80 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 caret-brand-violet ' +
+  'w-full px-3.5 py-2.5 rounded-xl bg-bg-surface/80 border border-brand-violet/20 text-sm text-slate-800 placeholder:text-slate-400 caret-brand-violet ' +
   'focus:outline-none focus:ring-2 focus:ring-brand-violet/50 focus:border-brand-violet/50 ' +
-  'transition-all duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+  'transition-all duration-150 shadow-[inset_0_1px_0_rgba(124,92,255,0.04)]';
 
 export function ContactEditModal({ contact, onClose }: ContactEditModalProps) {
   const store = useAppStore();
@@ -172,10 +172,10 @@ export function ContactEditModal({ contact, onClose }: ContactEditModalProps) {
       />
       <div
         ref={modalRef}
-        className="relative w-full sm:max-w-lg bg-bg sm:rounded-2xl border border-white/10 shadow-[0_32px_80px_-20px_rgba(0,0,0,0.8)] animate-slideInRight sm:animate-fadeIn flex flex-col max-h-[90vh] overflow-hidden"
+        className="relative w-full sm:max-w-lg bg-bg sm:rounded-2xl border border-brand-violet/20 shadow-[0_32px_80px_-20px_rgba(15,23,42,0.53)] animate-slideInRight sm:animate-fadeIn flex flex-col max-h-[90vh] overflow-hidden"
         tabIndex={-1}
       >
-        <header className="px-5 py-4 border-b border-white/5 flex items-center gap-3 shrink-0">
+        <header className="px-5 py-4 border-b border-brand-violet/10 flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-cyan to-brand-violet flex items-center justify-center shadow-glow">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
               <path d="M12 20h9" />
@@ -183,10 +183,10 @@ export function ContactEditModal({ contact, onClose }: ContactEditModalProps) {
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="font-display font-bold text-white text-lg leading-tight">
+            <h2 className="font-display font-bold text-slate-900 text-lg leading-tight">
               Modifier le contact
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               {contact.firstName} {contact.lastName}
             </p>
           </div>
@@ -194,7 +194,7 @@ export function ContactEditModal({ contact, onClose }: ContactEditModalProps) {
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="btn-ghost !p-2 hover:bg-white/10"
+            className="btn-ghost !p-2 hover:bg-brand-violet/10"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -301,7 +301,7 @@ export function ContactEditModal({ contact, onClose }: ContactEditModalProps) {
             )}
           </div>
 
-          <footer className="px-5 py-4 border-t border-white/5 flex items-center justify-end gap-2 bg-bg-surface/40 backdrop-blur shrink-0">
+          <footer className="px-5 py-4 border-t border-brand-violet/10 flex items-center justify-end gap-2 bg-bg-surface/40 backdrop-blur shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -349,7 +349,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+      <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
         {label}
         {required && <span className="text-brand-coral">*</span>}
       </span>

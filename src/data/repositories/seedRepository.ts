@@ -9,10 +9,12 @@
 import type { Contact, Exchange, Mission, NextAction, Request } from '../../types';
 import type {
   CreateContactInput,
+  CreateMissionInput,
   CreateRequestActionInput,
   CreateRequestInput,
   IRepository,
   UpdateContactInput,
+  UpdateMissionInput,
   UpdateRequestActionInput,
   UpdateRequestInput,
 } from './interface';
@@ -288,5 +290,37 @@ export class SeedRepository implements IRepository {
       }
     }
     return Promise.resolve();
+  }
+
+  async createMission(input: CreateMissionInput): Promise<Mission> {
+    const id = `m-new-${Date.now()}`;
+    const now = new Date().toISOString();
+    const created: Mission = {
+      id,
+      requestId: input.requestId,
+      contactId: input.contactId,
+      title: input.title,
+      status: input.status ?? 'a_demarrer',
+      progress: input.progress ?? 0,
+      notes: input.notes ?? undefined,
+      startDate: now,
+    };
+    this.missions.push(created);
+    return Promise.resolve(created);
+  }
+
+  async updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission> {
+    const idx = this.missions.findIndex((m) => m.id === missionId);
+    if (idx === -1) throw new Error(`Mission ${missionId} introuvable`);
+    const existing = this.missions[idx];
+    const updated: Mission = {
+      ...existing,
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.progress !== undefined ? { progress: input.progress } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes ?? undefined } : {}),
+    };
+    this.missions[idx] = updated;
+    return Promise.resolve(updated);
   }
 }

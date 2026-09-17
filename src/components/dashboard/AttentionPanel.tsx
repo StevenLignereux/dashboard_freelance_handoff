@@ -29,7 +29,7 @@ export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </span>
-            <h2 className="font-display font-bold text-white text-lg leading-none">
+            <h2 className="font-display font-bold text-slate-900 text-lg leading-none">
               À traiter en priorité
             </h2>
           </div>
@@ -46,7 +46,7 @@ export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
                 <button
                   onClick={() => { onOpenContact(item.contactId); }}
                   className="group w-full flex items-center gap-3 p-3 rounded-xl ring-1 ring-transparent
-                    hover:bg-white/5 hover:ring-white/10
+                    hover:bg-brand-violet/5 hover:ring-brand-violet/20
                     active:scale-[0.99]
                     transition-all duration-150 ease-snap text-left"
                 >
@@ -56,7 +56,7 @@ export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
                     </svg>
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
                       {item.label}
                     </div>
                     <div className="text-xs text-brand-coral font-medium mt-0.5 flex items-center gap-1.5">
@@ -66,12 +66,12 @@ export function AttentionPanel({ items, onOpenContact }: AttentionPanelProps) {
                       </svg>
                       <span className="truncate">{item.sub}</span>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                    <div className="text-[11px] text-slate-400 mt-0.5 truncate">
                       {schedule}
                     </div>
                   </div>
                   <span
-                    className="text-slate-500 group-hover:text-white transition-colors shrink-0"
+                    className="text-slate-400 group-hover:text-slate-900 transition-colors shrink-0"
                     aria-hidden="true"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

@@ -29,7 +29,7 @@ export function ActiveMissionsPanel({ missions, contacts, onOpenContact }: Activ
                 <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
               </svg>
             </span>
-            <h2 className="font-display font-bold text-white text-lg leading-none">
+            <h2 className="font-display font-bold text-slate-900 text-lg leading-none">
               Missions en cours
             </h2>
           </div>
@@ -47,7 +47,7 @@ export function ActiveMissionsPanel({ missions, contacts, onOpenContact }: Activ
                 <button
                   onClick={() => { onOpenContact(mission.contactId); }}
                   className="group w-full text-left p-3 rounded-xl ring-1 ring-transparent
-                    hover:bg-white/5 hover:ring-white/10
+                    hover:bg-brand-violet/5 hover:ring-brand-violet/20
                     active:scale-[0.99]
                     transition-all duration-150 ease-snap"
                 >
@@ -58,11 +58,11 @@ export function ActiveMissionsPanel({ missions, contacts, onOpenContact }: Activ
                       </svg>
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">
+                      <div className="text-sm font-semibold text-slate-900 truncate">
                         {mission.title}
                       </div>
                       {contact && (
-                        <div className="text-xs text-slate-400 truncate">
+                        <div className="text-xs text-slate-500 truncate">
                           {contact.firstName} {contact.lastName}
                           {contact.company && ` · ${contact.company}`}
                         </div>
@@ -76,7 +76,7 @@ export function ActiveMissionsPanel({ missions, contacts, onOpenContact }: Activ
                   </div>
                   <div className="mt-3 pl-11">
                     <div
-                      className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden"
+                      className="h-1.5 w-full rounded-full bg-brand-violet/10 overflow-hidden"
                       role="progressbar"
                       aria-valuenow={progress}
                       aria-valuemin={0}

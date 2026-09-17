@@ -177,25 +177,25 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
             aria-modal="true"
             aria-label="Planifier une action"
             tabIndex={-1}
-            className="relative z-10 w-full max-w-2xl rounded-3xl surface backdrop-blur-xl p-6 sm:p-8
-              ring-1 ring-white/10 shadow-[0_60px_120px_-20px_rgba(0,0,0,0.9),0_20px_60px_-10px_rgba(124,92,255,0.2)]"
+            className="relative z-10 w-full max-w-lg rounded-3xl surface backdrop-blur-xl p-6 sm:p-7
+              ring-1 ring-brand-violet/20 shadow-[0_60px_120px_-20px_rgba(15,23,42,0.6),0_20px_60px_-10px_rgba(124,92,255,0.2)]"
             initial={reduced ? { opacity: 0, scale: 0.96 } : { opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={reduced ? { opacity: 0, scale: 0.96 } : { opacity: 0, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26 }}
           >
             <form onSubmit={handleSubmit} className="space-y-5">
-              <h2 className="font-display font-bold text-white text-2xl leading-tight">
+              <h2 className="font-display font-bold text-slate-900 text-2xl leading-tight">
                 Planifier une action
               </h2>
 
-              <div className="text-sm text-slate-400">
-                Pour la demande « <span className="text-slate-200 font-medium">{request.title}</span> »
+              <div className="text-sm text-slate-500">
+                Pour la demande <span className="text-slate-800 font-medium">{request.title}</span>
               </div>
 
               <div>
                 <label className="block">
-                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
                     Type d'action
                   </span>
                   <select
@@ -214,7 +214,7 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
 
               <div>
                 <label className="block">
-                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
                     Action <span className="text-brand-coral">*</span>
                   </span>
                   <input
@@ -231,7 +231,7 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
 
               <div>
                 <label className="block">
-                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
                     Date prévue <span className="text-brand-coral">*</span>
                   </span>
                   <input
