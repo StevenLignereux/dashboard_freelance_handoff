@@ -196,6 +196,8 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
   }, [allFilteredItems]);
 
   const hasActiveSearch = store.search.query.trim().length > 0;
+  const totalMissions = store.data.missions.length;
+  const totalFollowingMissions = store.data.missions.filter(m => m.status === 'a_demarrer' || m.status === 'en_cours' || m.status === 'en_attente').length;
 
   const emptyStateConfig = useMemo(() => {
     if (hasActiveSearch && allFilteredItems.length === 0) {
@@ -204,23 +206,60 @@ export function MissionsPage({ onOpenContact, onEditMission }: MissionsPageProps
         description: 'Aucune mission ne correspond à ta recherche.'
       };
     }
-    if (currentView === 'following') {
+
+    if (hasActiveSearch && allFilteredItems.length > 0 && displayedItems.length === 0) {
+      if (currentView === 'following') {
+        return {
+          title: 'Aucune mission à suivre',
+          description: 'Ta recherche a trouvé des missions, mais aucune ne correspond à la vue "À suivre". Essaie de changer de filtre.'
+        };
+      }
+      if (currentView === 'completed') {
+        return {
+          title: 'Aucune mission terminée',
+          description: 'Ta recherche a trouvé des missions, mais aucune ne correspond à la vue "Terminées". Essaie de changer de filtre.'
+        };
+      }
+    }
+
+    if (!hasActiveSearch && totalMissions === 0) {
       return {
-        title: 'Aucune mission à suivre',
-        description: 'Toutes vos missions sont terminées. Vous pouvez créer une nouvelle mission pour commencer.'
+        title: 'Aucune mission trouvée',
+        description: 'Les missions apparaîtront ici une fois créées depuis une demande.'
       };
     }
+
+    if (currentView === 'following') {
+      if (totalFollowingMissions === 0 && totalMissions > 0) {
+        return {
+          title: 'Aucune mission à suivre',
+          description: 'Toutes tes missions sont terminées. Tu peux créer une nouvelle mission pour commencer.'
+        };
+      }
+      if (totalMissions === 0) {
+        return {
+          title: 'Aucune mission trouvée',
+          description: 'Les missions apparaîtront ici une fois créées depuis une demande.'
+        };
+      }
+      return {
+        title: 'Aucune mission à suivre',
+        description: 'Aucune mission ne correspond à la vue "À suivre". Essaie de changer de filtre.'
+      };
+    }
+
     if (currentView === 'completed') {
       return {
         title: 'Aucune mission terminée',
-        description: 'Les missions que vous marquez comme terminées apparaîtront ici.'
+        description: 'Les missions que tu marques comme terminées apparaîtront ici.'
       };
     }
+
     return {
       title: 'Aucune mission trouvée',
-      description: 'Les missions apparaîtront ici une fois liées à une demande.'
+      description: 'Les missions apparaîtront ici une fois créées depuis une demande.'
     };
-  }, [currentView, hasActiveSearch, allFilteredItems.length]);
+  }, [currentView, hasActiveSearch, allFilteredItems.length, displayedItems.length, totalMissions, totalFollowingMissions]);
 
   const viewOptions: { value: FilterView; label: string; count: number }[] = [
     { value: 'following', label: 'À suivre', count: viewCounts.following },
