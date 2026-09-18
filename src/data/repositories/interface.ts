@@ -4,7 +4,7 @@
  * Contient aussi le contrat d'entrée pour la création d'un contact.
  */
 
-import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType } from '../../types';
+import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType, ExchangeType } from '../../types';
 import type { NextAction } from '../../types';
 
 /**
@@ -85,6 +85,13 @@ export interface UpdateMissionInput {
   status?: Mission['status'];
   progress?: number;
   notes?: string | null;
+}
+
+export interface CreateExchangeInput {
+  requestId: string;
+  type: ExchangeType;
+  date: string;
+  summary: string;
 }
 
 export interface IRepository {
