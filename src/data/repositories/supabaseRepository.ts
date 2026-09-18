@@ -14,6 +14,7 @@ import type {
   CreateMissionInput,
   CreateRequestActionInput,
   CreateRequestInput,
+  CreateExchangeInput,
   IRepository,
   UpdateContactInput,
   UpdateMissionInput,
@@ -620,8 +621,6 @@ export class SupabaseRepository implements IRepository {
   }
 
   async archiveRequest(requestId: string): Promise<void> {
-
-
     this.ensureSupabaseConfigured();
     const sb = this.getSupabase();
 
@@ -645,8 +644,33 @@ export class SupabaseRepository implements IRepository {
   async createMission(input: CreateMissionInput): Promise<Mission> {
     this.ensureSupabaseConfigured();
     const userId = await this.getCurrentUserId();
-    const sb = this.getSupabase();
     const now = new Date().toISOString();
+    const sb = this.getSupabase();
+
+    const { data: requestData, error: requestError } = await sb
+      .from('requests')
+      .select('id, archived, contact_id')
+      .eq('id', input.requestId)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new Error(
+        `Failed to load request id=${input.requestId}: ${requestError.message}`
+      );
+    }
+
+    if (!requestData) {
+      throw new Error(
+        `Cannot create mission: request id=${input.requestId} not found.`
+      );
+    }
+
+    if (requestData.archived) {
+      throw new Error(
+        `Cannot create mission: request id=${input.requestId} is archived.`
+      );
+    }
+
     const { data, error } = await sb
       .from('missions')
       .insert({
@@ -660,8 +684,13 @@ export class SupabaseRepository implements IRepository {
       })
       .select()
       .single();
-    if (error) throw new Error(`Failed to create mission: ${error.message}`);
-    return mapMission(data, input.contactId);
+    if (error) {
+      throw new Error(
+        `Failed to create mission for request id=${input.requestId}: ${error.message}`
+      );
+    }
+
+    return mapMission(data, requestData.contact_id);
   }
 
   async updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission> {
@@ -690,5 +719,69 @@ export class SupabaseRepository implements IRepository {
     if (!contactId) throw new Error(`Mission ${missionId} réfère une request sans contact_id`);
     return mapMission(dbMission, contactId);
   }
-}
 
+  async createExchange(input: CreateExchangeInput): Promise<Exchange> {
+    this.ensureSupabaseConfigured();
+    const summary = input.summary.trim();
+    if (summary.length === 0) {
+      throw new Error('Cannot create exchange: summary cannot be empty after trimming.');
+    }
+    if (Number.isNaN(new Date(input.date).getTime())) {
+      throw new Error('Cannot create exchange: date must be valid.');
+    }
+
+    const sb = this.getSupabase();
+    const userId = await this.getCurrentUserId();
+    const { data: requestData, error: requestError } = await sb
+      .from('requests')
+      .select('id, contact_id, archived, last_activity_at')
+      .eq('id', input.requestId)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new Error(`Failed to load request id=${input.requestId}: ${requestError.message}`);
+    }
+    if (!requestData) {
+      throw new Error(`Cannot create exchange: request id=${input.requestId} not found.`);
+    }
+    if (requestData.archived) {
+      throw new Error(`Cannot create exchange: request id=${input.requestId} is archived.`);
+    }
+
+    const { data, error } = await sb
+      .from('exchanges')
+      .insert({
+        user_id: userId,
+        request_id: input.requestId,
+        type: input.type,
+        occurred_at: input.date,
+        summary,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create exchange for request id=${input.requestId}: ${error.message}`);
+    }
+
+    const { error: requestActivityError } = await sb
+      .from('requests')
+      .update({ last_activity_at: input.date })
+      .eq('id', input.requestId)
+      .lt('last_activity_at', input.date);
+    if (requestActivityError) {
+      throw new Error(`Failed to update request activity: ${requestActivityError.message}`);
+    }
+
+    const { error: contactActivityError } = await sb
+      .from('contacts')
+      .update({ last_activity_at: input.date })
+      .eq('id', requestData.contact_id)
+      .lt('last_activity_at', input.date);
+    if (contactActivityError) {
+      throw new Error(`Failed to update contact activity: ${contactActivityError.message}`);
+    }
+
+    return mapExchange(data);
+  }
+}
