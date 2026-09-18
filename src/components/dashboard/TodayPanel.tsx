@@ -38,7 +38,7 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
             </span>
-            <h2 className="font-display font-bold text-white text-lg leading-none" dangerouslySetInnerHTML={{ __html: title }} />
+            <h2 className="font-display font-bold text-slate-900 text-lg leading-none" dangerouslySetInnerHTML={{ __html: title }} />
           </div>
           <span className={`chip ring-1 ${color.chip}`}>
             {count}
@@ -53,7 +53,7 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
                 <button
                   onClick={() => { onOpenContact(item.contactId); }}
                   className="group w-full flex items-center gap-3 p-3 rounded-xl ring-1 ring-transparent
-                    hover:bg-white/5 hover:ring-white/10
+                    hover:bg-brand-violet/5 hover:ring-brand-violet/20
                     active:scale-[0.99]
                     transition-all duration-150 ease-snap text-left"
                 >
@@ -63,10 +63,10 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
                     </svg>
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
                       {item.label}
                     </div>
-                    <div className="text-xs text-slate-300 mt-0.5 truncate">
+                    <div className="text-xs text-slate-700 mt-0.5 truncate">
                       {item.sub}
                     </div>
                     <div className={`text-[11px] font-medium mt-0.5 flex items-center gap-1 ${color.hour}`}>
@@ -78,7 +78,7 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
                     </div>
                   </div>
                   <span
-                    className="text-slate-500 group-hover:text-white transition-colors shrink-0"
+                    className="text-slate-400 group-hover:text-slate-900 transition-colors shrink-0"
                     aria-hidden="true"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

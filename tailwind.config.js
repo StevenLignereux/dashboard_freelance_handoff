@@ -5,9 +5,11 @@ export default {
     extend: {
       colors: {
         bg: {
-          DEFAULT: '#0D0F14',
-          surface: '#161A22',
-          surface2: '#1D2230',
+          DEFAULT: '#FAF8F4',
+          base: '#FAF8F4',
+          surface: '#FFFFFF',
+          surface2: '#F2EFE9',
+          panel: '#F7F4EE',
         },
         brand: {
           violet: '#7C5CFF',
@@ -34,11 +36,11 @@ export default {
         body: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 0 0 1px rgba(124, 92, 255, 0.3), 0 4px 24px -8px rgba(124, 92, 255, 0.4)',
-        'glow-cyan': '0 0 0 1px rgba(34, 211, 238, 0.3), 0 4px 24px -8px rgba(34, 211, 238, 0.4)',
-        'glow-coral': '0 0 0 1px rgba(255, 122, 89, 0.3), 0 4px 24px -8px rgba(255, 122, 89, 0.4)',
-        'glow-green': '0 0 0 1px rgba(52, 211, 153, 0.3), 0 4px 24px -8px rgba(52, 211, 153, 0.4)',
-        card: '0 1px 0 0 rgba(255,255,255,0.04) inset, 0 24px 48px -24px rgba(0,0,0,0.6)',
+        glow: '0 0 0 1px rgba(124, 92, 255, 0.25), 0 6px 20px -10px rgba(124, 92, 255, 0.35)',
+        'glow-cyan': '0 0 0 1px rgba(34, 211, 238, 0.25), 0 6px 20px -10px rgba(34, 211, 238, 0.35)',
+        'glow-coral': '0 0 0 1px rgba(255, 122, 89, 0.25), 0 6px 20px -10px rgba(255, 122, 89, 0.35)',
+        'glow-green': '0 0 0 1px rgba(52, 211, 153, 0.25), 0 6px 20px -10px rgba(52, 211, 153, 0.35)',
+        card: '0 1px 0 0 rgba(255,255,255,1) inset, 0 14px 36px -20px rgba(60,50,90,0.22)',
       },
       transitionTimingFunction: {
         snap: 'cubic-bezier(0.2, 0.8, 0.2, 1)',

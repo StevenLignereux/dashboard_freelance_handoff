@@ -48,16 +48,6 @@ const navItems: {
       </svg>
     ),
   },
-  {
-    key: 'settings',
-    label: 'Paramètres',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
-  },
 ];
 
 interface SidebarProps {
@@ -78,7 +68,7 @@ export function Sidebar({
     <>
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden animate-fadeIn"
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm md:hidden animate-fadeIn"
           onClick={onCloseMobile}
           aria-hidden="true"
         />
@@ -86,25 +76,25 @@ export function Sidebar({
       <aside
         className={`
           fixed md:sticky md:top-0 md:h-screen md:self-start md:max-h-screen inset-y-0 left-0 z-40 w-72 shrink-0
-          bg-bg/95 md:bg-bg-surface/60 md:backdrop-blur-xl
-          border-r border-white/5
+          bg-bg-panel/95 md:bg-bg-surface/80 md:backdrop-blur-xl
+          border-r border-brand-violet/10
           transform transition-transform duration-300 ease-snap
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           flex flex-col
         `}
       >
-        <div className="px-5 py-5 flex items-center gap-3 border-b border-white/5 shrink-0">
+        <div className="px-5 py-5 flex items-center gap-3 border-b border-brand-violet/10 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-violet to-brand-cyan flex items-center justify-center shadow-glow">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </div>
           <div>
-            <div className="font-display font-bold text-white tracking-tight text-lg leading-none">
+            <div className="font-display font-bold text-slate-900 tracking-tight text-lg leading-none">
               {appConfig.productName}
               <span className="text-brand-violet">.</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">
+            <div className="text-[11px] text-slate-500 mt-0.5">
               {appConfig.productTagline}
             </div>
           </div>
@@ -127,32 +117,32 @@ export function Sidebar({
                   'group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
                   'transition-all duration-150 ease-snap',
                   active
-                    ? 'text-white bg-gradient-to-r from-brand-violet/20 via-brand-violet/10 to-transparent ring-1 ring-brand-violet/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5',
+                    ? 'text-slate-900 bg-gradient-to-r from-brand-violet/15 via-brand-violet/10 to-transparent ring-1 ring-brand-violet/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-brand-violet/5',
                 ].join(' ')}
               >
                 <span
                   className={[
                     'transition-colors',
-                    active ? 'text-brand-violet' : 'text-slate-500 group-hover:text-slate-200',
+                    active ? 'text-brand-violet' : 'text-slate-400 group-hover:text-slate-600',
                   ].join(' ')}
                 >
                   {item.icon}
                 </span>
                 <span>{item.label}</span>
                 {active && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-violet shadow-[0_0_12px_rgba(124,92,255,0.8)]" />
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-violet shadow-[0_0_12px_rgba(124,92,255,0.6)]" />
                 )}
               </button>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-white/5 shrink-0">
-          <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-brand-violet/20 via-bg-surface2 to-brand-cyan/10 ring-1 ring-white/5">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-brand-violet/20 blur-3xl" />
+        <div className="p-3 border-t border-brand-violet/10 shrink-0">
+          <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-brand-violet/15 via-bg-surface2 to-brand-cyan/10 ring-1 ring-brand-violet/15">
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-brand-violet/15 blur-3xl" />
             <div className="relative">
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 <span className="font-serif text-lg leading-none text-brand-violet">
                   “
                 </span>

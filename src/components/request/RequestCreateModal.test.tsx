@@ -8,6 +8,7 @@ import type {
   Exchange,
   Mission,
   Request,
+  NextAction,
 } from '../../types';
 import { seedContacts, seedRequests, seedMissions, seedExchanges } from '../../data/seedData';
 import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../../data/repositories/interface';
@@ -15,6 +16,8 @@ import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContact
 type RepositorySpy = IRepository & {
   createRequestSpy: Mock<(input: CreateRequestInput) => Promise<Request>>;
 };
+
+import type { CreateRequestActionInput } from '../../data/repositories/interface';
 
 function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -45,6 +48,13 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
         })
     );
 
+  const createRequestActionSpy = vi
+    .fn<(input: CreateRequestActionInput) => Promise<NextAction>>()
+    .mockImplementation(
+      overrides?.createRequestAction ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
   return {
     loadContacts: () => Promise.resolve(sc),
     loadRequests: () => Promise.resolve(sr),
@@ -60,6 +70,13 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
       overrides?.archiveContact ?? (() => Promise.resolve()),
     updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
+    createRequestAction: createRequestActionSpy,
+    updateRequestAction: () =>
+      Promise.reject(new Error('not implemented')),
+    createMission: () =>
+      Promise.reject(new Error('not implemented')),
+    updateMission: () =>
+      Promise.reject(new Error('not implemented')),
     ...overrides,
     createRequest: createRequestSpy,
     createRequestSpy,

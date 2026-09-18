@@ -4,7 +4,8 @@
  * Contient aussi le contrat d'entrée pour la création d'un contact.
  */
 
-import type { Contact, Exchange, Mission, RelationshipType, Request } from '../../types';
+import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType } from '../../types';
+import type { NextAction } from '../../types';
 
 /**
  * Contrat d'entrée d'un nouveau contact tel que fourni par le formulaire.
@@ -57,6 +58,35 @@ export interface UpdateRequestInput {
   description?: string | null;
 }
 
+export interface CreateRequestActionInput {
+  requestId: string;
+  type: NextActionType;
+  label: string;
+  dueDate: string;
+}
+
+export interface UpdateRequestActionInput {
+  type?: NextActionType;
+  label?: string;
+  dueDate?: string;
+}
+
+export interface CreateMissionInput {
+  requestId: string;
+  contactId: string;
+  title: string;
+  status?: Mission['status'];
+  progress?: number;
+  notes?: string | null;
+}
+
+export interface UpdateMissionInput {
+  title?: string;
+  status?: Mission['status'];
+  progress?: number;
+  notes?: string | null;
+}
+
 export interface IRepository {
   /**
    * Charge tous les contacts avec leurs données dérivées.
@@ -84,6 +114,20 @@ export interface IRepository {
   createContact(input: CreateContactInput): Promise<Contact>;
 
   /**
+   * Crée une nouvelle action pour une demande existante.
+   */
+  createRequestAction(input: CreateRequestActionInput): Promise<NextAction>;
+
+  /**
+   * Met à jour une action existante.
+   */
+   updateRequestAction(
+    actionId: string,
+    input: UpdateRequestActionInput
+  ): Promise<NextAction>;
+
+
+  /**
    * Met à jour un contact existant via UpdateContactInput.
    * Ne modifie que les champs explicitement autorisés.
    * Retourne le contact mappé avec ses dérivés cohérents.
@@ -99,5 +143,7 @@ export interface IRepository {
 
   createRequest(input: CreateRequestInput): Promise<Request>;
   updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request>;
+  createMission(input: CreateMissionInput): Promise<Mission>;
+  updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission>;
   archiveRequest(requestId: string): Promise<void>;
 }

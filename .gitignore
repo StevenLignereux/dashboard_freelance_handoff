@@ -10,6 +10,7 @@ dist/
 coverage/
 .temp/
 tmp/
+.trae/
 
 # Supabase local state (ne pas versionner)
 supabase/.temp/
@@ -17,3 +18,6 @@ supabase/.branches/
 
 # TypeScript build artifacts
 *.tsbuildinfo
+
+# Local test output
+test-output.txt

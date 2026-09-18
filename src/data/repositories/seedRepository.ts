@@ -6,8 +6,19 @@
  * afin d'éviter de muter les exports globaux et de polluer d'autres tests.
  */
 
-import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
+import type { Contact, Exchange, Mission, NextAction, Request } from '../../types';
+import type {
+  CreateContactInput,
+  CreateMissionInput,
+  CreateRequestActionInput,
+  CreateRequestInput,
+  IRepository,
+  UpdateContactInput,
+  UpdateMissionInput,
+  UpdateRequestActionInput,
+  UpdateRequestInput,
+} from './interface';
+
 import {
   seedContacts,
   seedRequests,
@@ -179,6 +190,87 @@ export class SeedRepository implements IRepository {
     return updated;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async createRequestAction(input: CreateRequestActionInput): Promise<NextAction> {
+    const requestIndex = this.requests.findIndex((request) => request.id === input.requestId);
+
+    if (requestIndex === -1) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} not found.`);
+    }
+
+    const request = this.requests[requestIndex];
+
+    if (request.archived) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} is archived.`);
+    }
+
+    if (request.nextAction) {
+      throw new Error(`Cannot create request action: request id=${input.requestId} already has an open action.`);
+    }
+
+    const action: NextAction = {
+      id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: input.type,
+      label: input.label,
+      dueDate: input.dueDate,
+    };
+
+    this.requests[requestIndex] = {
+      ...request,
+      nextAction: action,
+    };
+
+    return action;
+  }
+
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async updateRequestAction(
+    actionId: string,
+    input: UpdateRequestActionInput
+  ): Promise<NextAction> {
+    const requestIndex = this.requests.findIndex(
+      (request) => request.nextAction?.id === actionId
+    );
+
+    if (requestIndex === -1) {
+      throw new Error(
+        `Cannot update request action: action id=${actionId} not found.`
+      );
+    }
+
+    const request = this.requests[requestIndex];
+
+    if (request.archived) {
+      throw new Error(
+        `Cannot update request action: request id=${request.id} is archived.`
+      );
+    }
+
+    const previousAction = request.nextAction;
+
+    if (!previousAction) {
+      throw new Error(
+        `Cannot update request action: action id=${actionId} not found.`
+      );
+    }
+
+    const updatedAction: NextAction = {
+      ...previousAction,
+      type: input.type ?? previousAction.type,
+      label: input.label ?? previousAction.label,
+      dueDate: input.dueDate ?? previousAction.dueDate,
+    };
+
+    this.requests[requestIndex] = {
+      ...request,
+      nextAction: updatedAction,
+    };
+
+    return updatedAction;
+  }
+
+
   archiveRequest(requestId: string): Promise<void> {
     const idx = this.requests.findIndex((r) => r.id === requestId);
     if (idx === -1) {
@@ -198,5 +290,37 @@ export class SeedRepository implements IRepository {
       }
     }
     return Promise.resolve();
+  }
+
+  async createMission(input: CreateMissionInput): Promise<Mission> {
+    const id = `m-new-${Date.now()}`;
+    const now = new Date().toISOString();
+    const created: Mission = {
+      id,
+      requestId: input.requestId,
+      contactId: input.contactId,
+      title: input.title,
+      status: input.status ?? 'a_demarrer',
+      progress: input.progress ?? 0,
+      notes: input.notes ?? undefined,
+      startDate: now,
+    };
+    this.missions.push(created);
+    return Promise.resolve(created);
+  }
+
+  async updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission> {
+    const idx = this.missions.findIndex((m) => m.id === missionId);
+    if (idx === -1) throw new Error(`Mission ${missionId} introuvable`);
+    const existing = this.missions[idx];
+    const updated: Mission = {
+      ...existing,
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.progress !== undefined ? { progress: input.progress } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes ?? undefined } : {}),
+    };
+    this.missions[idx] = updated;
+    return Promise.resolve(updated);
   }
 }

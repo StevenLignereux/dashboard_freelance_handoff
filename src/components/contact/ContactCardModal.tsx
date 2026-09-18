@@ -22,8 +22,10 @@ interface ContactCardModalProps {
   onEdit?: (contactId: string) => void;
   onArchive?: (contactId: string) => void;
   onCreateRequest?: (contactId: string) => void;
+  onCreateRequestAction?: (requestId: string) => void;
   onEditRequest?: (requestId: string) => void;
   onArchiveRequest?: (requestId: string) => void;
+  onCreateMission?: (requestId: string) => void;
 }
 
 const exchangeMeta: Record<string, { label: string; color: string }> = {
@@ -53,7 +55,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -63,8 +65,8 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
   const contact = store.data.contacts.find((c) => c.id === contactId) ?? null;
   const selectedRequest = contact && requestId
     ? store.data.requests.find(
-        (r) => r.id === requestId && r.contactId === contact.id
-      )
+      (r) => r.id === requestId && r.contactId === contact.id
+    )
     : undefined;
   const activeRequest: Request | undefined = contact
     ? (selectedRequest ??
@@ -78,10 +80,10 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
     : [];
   const contactExchanges: Exchange[] = contact
     ? getExchangesForContact({
-        contactId: contact.id,
-        requests: store.data.requests,
-        exchanges: store.data.exchanges,
-      })
+      contactId: contact.id,
+      requests: store.data.requests,
+      exchanges: store.data.exchanges,
+    })
     : [];
 
   const nextActionHydrated = hydrateNextAction(activeRequest?.nextAction);
@@ -187,7 +189,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
             tabIndex={-1}
             className="relative z-10 w-full max-w-[920px] lg:max-w-[950px] max-h-[94vh]
               bg-bg-surface/90 backdrop-blur-xl rounded-3xl
-              ring-1 ring-white/10 shadow-[0_60px_120px_-20px_rgba(0,0,0,0.9),0_20px_60px_-10px_rgba(124,92,255,0.2)]
+              ring-1 ring-brand-violet/20 shadow-[0_60px_120px_-20px_rgba(15,23,42,0.6),0_20px_60px_-10px_rgba(124,92,255,0.2)]
               overflow-hidden
               md:inset-auto
               md:h-[min(820px,90vh)]
@@ -214,7 +216,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
               onClick={onClose}
               aria-label="Fermer"
               data-focus-init
-              className="absolute top-3 right-3 z-20 btn-ghost !p-2 rounded-xl bg-black/30 hover:bg-black/60 ring-1 ring-white/10 backdrop-blur"
+              className="absolute top-3 right-3 z-20 btn-ghost !p-2 rounded-xl bg-black/30 hover:bg-black/60 ring-1 ring-brand-violet/20 backdrop-blur"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -222,7 +224,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
               </svg>
             </button>
 
-            <div className="relative z-10 w-full lg:w-[410px] shrink-0 p-4 sm:p-5 lg:p-5 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 overflow-hidden">
+            <div className="relative z-10 w-full lg:w-[410px] shrink-0 p-4 sm:p-5 lg:p-5 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-brand-violet/10 overflow-hidden">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0"
@@ -250,7 +252,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
                   filter: 'blur(0.5px)',
                 }}
               />
-              <div className="relative z-10 w-full max-w-[350px] mx-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.55)]">
+              <div className="relative z-10 w-full max-w-[350px] mx-auto drop-shadow-[0_20px_40px_rgba(15,23,42,0.37)]">
                 <TradingCard
                   layoutId={`card-${contact.id}`}
                   contact={contact}
@@ -274,14 +276,16 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
                     isActive={!requestId}
                     onEditRequest={onEditRequest}
                     onArchiveRequest={onArchiveRequest}
+                    onCreateRequestAction={onCreateRequestAction}
+                    onCreateMission={onCreateMission}
                   />
                 ) : (
                   !contact.archived && (
-                    <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
-                      <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">
+                    <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-brand-violet/5 ring-1 ring-brand-violet/10">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
                         Demande
                       </p>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-slate-500">
                         Aucune demande active pour ce contact.
                       </p>
                       {onCreateRequest && (
@@ -320,26 +324,26 @@ function ModalHeader({ contact, onEdit, onArchive }: { contact: Contact; onEdit?
         <p className="text-[11px] uppercase tracking-wider font-semibold text-brand-violet/90">
           Fiche contact
         </p>
-        <h2 className="font-display font-bold text-white text-2xl leading-tight mt-1">
+        <h2 className="font-display font-bold text-slate-900 text-2xl leading-tight mt-1">
           {contact.firstName} {contact.lastName}
         </h2>
         {contact.company && (
-          <p className="text-sm text-slate-400 mt-0.5">{contact.company}</p>
+          <p className="text-sm text-slate-500 mt-0.5">{contact.company}</p>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <RelationshipBadge relationship={contact.relationship} withDot />
         {contact.archived && (
-          <span className="chip bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25">
+          <span className="chip bg-slate-500/15 text-slate-500 ring-1 ring-slate-500/25">
             Archivé
           </span>
         )}
-        <div className="w-px h-6 bg-white/10 mx-1" aria-hidden="true" />
+        <div className="w-px h-6 bg-brand-violet/20 mx-1" aria-hidden="true" />
         {onEdit && (
           <button
             type="button"
             onClick={() => { onEdit(contact.id); }}
-            className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-white/10"
+            className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-brand-violet/10"
             aria-label={`Modifier ${contact.firstName} ${contact.lastName}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
@@ -353,7 +357,7 @@ function ModalHeader({ contact, onEdit, onArchive }: { contact: Contact; onEdit?
           <button
             type="button"
             onClick={() => { onArchive(contact.id); }}
-            className="btn-ghost !py-1.5 !px-2.5 text-xs text-slate-300 hover:text-brand-coral hover:bg-brand-coral/10 inline-flex items-center gap-1.5"
+            className="btn-ghost !py-1.5 !px-2.5 text-xs text-slate-700 hover:text-brand-coral hover:bg-brand-coral/10 inline-flex items-center gap-1.5"
             aria-label={`Archiver ${contact.firstName} ${contact.lastName}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
@@ -371,13 +375,13 @@ function ModalHeader({ contact, onEdit, onArchive }: { contact: Contact; onEdit?
 
 function ContactIdentity({ contact }: { contact: Contact }) {
   return (
-    <section className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
-      <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold mb-3">
+    <section className="p-4 sm:p-5 rounded-2xl bg-brand-violet/5 ring-1 ring-brand-violet/10">
+      <div className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold mb-3">
         Coordonnées
       </div>
       <ul className="grid sm:grid-cols-2 gap-2.5">
         {contact.email && (
-          <li className="flex items-center gap-2.5 text-sm text-slate-300">
+          <li className="flex items-center gap-2.5 text-sm text-slate-700">
             <span className="w-8 h-8 rounded-xl bg-brand-cyan/10 ring-1 ring-brand-cyan/20 flex items-center justify-center shrink-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-brand-cyan">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -393,7 +397,7 @@ function ContactIdentity({ contact }: { contact: Contact }) {
           </li>
         )}
         {contact.phone && (
-          <li className="flex items-center gap-2.5 text-sm text-slate-300">
+          <li className="flex items-center gap-2.5 text-sm text-slate-700">
             <span className="w-8 h-8 rounded-xl bg-brand-violet/10 ring-1 ring-brand-violet/20 flex items-center justify-center shrink-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-brand-violet">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -408,7 +412,7 @@ function ContactIdentity({ contact }: { contact: Contact }) {
           </li>
         )}
         {!contact.email && !contact.phone && (
-          <li className="text-xs text-slate-500 italic col-span-2">
+          <li className="text-xs text-slate-400 italic col-span-2">
             Aucune coordonnée renseignée
           </li>
         )}
@@ -417,41 +421,74 @@ function ContactIdentity({ contact }: { contact: Contact }) {
   );
 }
 
-function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void }) {
+function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void; onCreateRequestAction?: (requestId: string) => void; onCreateMission?: (requestId: string) => void }) {
   return (
-    <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-white/[0.02] ring-1 ring-white/5">
+    <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-brand-violet/5 ring-1 ring-brand-violet/10">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
           {isActive ? 'Demande active' : 'Demande'}
         </p>
         <StatusBadge status={request.status} />
       </div>
-      <h3 className="font-display font-semibold text-white text-lg">
+      <h3 className="font-display font-semibold text-slate-900 text-lg">
         {request.title}
       </h3>
       {request.description && (
-        <p className="text-sm text-slate-300 leading-relaxed">
+        <p className="text-sm text-slate-700 leading-relaxed">
           {request.description}
         </p>
       )}
       {request.nextAction && (
         <div>
-          <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-2">
+          <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">
             Prochaine action
           </p>
           <NextActionView action={request.nextAction} variant="standard" />
         </div>
       )}
-      <div className="text-[11px] text-slate-500 flex items-center gap-3 pt-1">
+      <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
         <span>Créée le {formatDueDate(request.createdAt).dateLabel}</span>
       </div>
-      {!request.archived && (onEditRequest ?? onArchiveRequest) && (
-        <div className="flex items-center gap-2 pt-2 mt-3 border-t border-white/5">
+      {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction ?? onCreateMission) && (
+        <div className="flex items-center gap-2 pt-2 mt-3 border-t border-brand-violet/10 flex-wrap">
+          {onCreateMission && (
+            <button
+              type="button"
+              onClick={() => { onCreateMission(request.id); }}
+              className="btn-primary !py-1.5 !px-3 text-xs inline-flex items-center gap-1.5"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M12 2v4" />
+                <path d="M12 18v4" />
+                <path d="m4.93 4.93 2.83 2.83" />
+                <path d="m16.24 16.24 2.83 2.83" />
+                <path d="M2 12h4" />
+                <path d="M18 12h4" />
+                <path d="m4.93 19.07 2.83-2.83" />
+                <path d="m16.24 7.76 2.83-2.83" />
+              </svg>
+              Créer une mission
+            </button>
+          )}
+          {!request.nextAction && onCreateRequestAction && (
+            <button
+              type="button"
+              onClick={() => { onCreateRequestAction(request.id); }}
+              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 text-brand-violet hover:bg-brand-violet/10"            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Planifier une action
+            </button>
+          )}
           {onEditRequest && (
             <button
               type="button"
               onClick={() => { onEditRequest(request.id); }}
-              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-white/10"
+              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-brand-violet/10"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
                 <path d="M12 20h9" />
@@ -464,7 +501,7 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
             <button
               type="button"
               onClick={() => { onArchiveRequest(request.id); }}
-              className="btn-ghost !py-1.5 !px-2.5 text-xs text-slate-300 hover:text-brand-coral hover:bg-brand-coral/10 inline-flex items-center gap-1.5"
+              className="btn-ghost !py-1.5 !px-2.5 text-xs text-slate-700 hover:text-brand-coral hover:bg-brand-coral/10 inline-flex items-center gap-1.5"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
                 <rect x="3" y="4" width="18" height="5" rx="1" />
@@ -483,26 +520,26 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
 function StatsBlock({ contact }: { contact: Contact }) {
   return (
     <section className="grid grid-cols-2 gap-3">
-      <div className="p-4 rounded-2xl bg-bg-surface/60 ring-1 ring-white/5">
-        <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">
+      <div className="p-4 rounded-2xl bg-bg-surface/60 ring-1 ring-brand-violet/10">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
           Demandes
         </p>
         <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="font-display font-bold text-white text-2xl tabular-nums">
+          <span className="font-display font-bold text-slate-900 text-2xl tabular-nums">
             {contact.totalRequests}
           </span>
-          <span className="text-xs text-slate-400">au total</span>
+          <span className="text-xs text-slate-500">au total</span>
         </div>
       </div>
-      <div className="p-4 rounded-2xl bg-bg-surface/60 ring-1 ring-white/5">
-        <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">
+      <div className="p-4 rounded-2xl bg-bg-surface/60 ring-1 ring-brand-violet/10">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
           Missions
         </p>
         <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="font-display font-bold text-white text-2xl tabular-nums">
+          <span className="font-display font-bold text-slate-900 text-2xl tabular-nums">
             {contact.totalMissions}
           </span>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-500">
             {pluralize(contact.totalMissions, 'réalisée', 'réalisées')}
           </span>
         </div>
@@ -515,17 +552,17 @@ function MissionsBlock({ missions }: { missions: Mission[] }) {
   if (missions.length === 0) return null;
   return (
     <section>
-      <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-3">
+      <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-3">
         Missions
       </h4>
       <ul className="space-y-2">
         {missions.slice(0, 4).map((m) => (
           <li
             key={m.id}
-            className="p-3 rounded-xl bg-white/[0.02] ring-1 ring-white/5"
+            className="p-3 rounded-xl bg-brand-violet/5 ring-1 ring-brand-violet/10"
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-slate-100 truncate">
+              <p className="text-sm font-medium text-slate-800 truncate">
                 {m.title}
               </p>
               <span className="chip bg-brand-green/15 text-brand-green ring-1 ring-brand-green/25 text-[10px]">
@@ -534,7 +571,7 @@ function MissionsBlock({ missions }: { missions: Mission[] }) {
             </div>
             {typeof m.progress === 'number' && (
               <div className="mt-2.5">
-                <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                <div className="h-1.5 w-full rounded-full bg-brand-violet/5 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-brand-green to-brand-cyan"
                     style={{ width: `${m.progress}%` }}
@@ -552,15 +589,15 @@ function MissionsBlock({ missions }: { missions: Mission[] }) {
 function ExchangesBlock({ exchanges }: { exchanges: Exchange[] }) {
   return (
     <section>
-      <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-3">
+      <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-3">
         Historique récent
       </h4>
       {exchanges.length === 0 ? (
-        <p className="text-xs text-slate-500 italic p-3 rounded-xl bg-white/[0.02] ring-1 ring-white/5">
+        <p className="text-xs text-slate-400 italic p-3 rounded-xl bg-brand-violet/5 ring-1 ring-brand-violet/10">
           Aucun échange enregistré
         </p>
       ) : (
-        <ol className="relative border-l border-white/10 ml-2 space-y-4">
+        <ol className="relative border-l border-brand-violet/20 ml-2 space-y-4">
           {exchanges.map((e) => {
             const meta = exchangeMeta[e.type] ?? exchangeMeta.note;
             const { dateLabel, hour } = formatDueDate(e.date);
@@ -574,12 +611,12 @@ function ExchangesBlock({ exchanges }: { exchanges: Exchange[] }) {
                   <span className={`chip ${meta.color} text-[10px]`}>
                     {meta.label}
                   </span>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-slate-400">
                     {dateLabel}
                     {hour && ` · ${hour}`}
                   </span>
                 </div>
-                <p className="text-sm text-slate-200 mt-1 leading-relaxed">
+                <p className="text-sm text-slate-800 mt-1 leading-relaxed">
                   {e.summary}
                 </p>
               </li>
@@ -594,10 +631,10 @@ function ExchangesBlock({ exchanges }: { exchanges: Exchange[] }) {
 function NotesBlock({ notes }: { notes: string }) {
   return (
     <section>
-      <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-2">
+      <h4 className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">
         Notes
       </h4>
-      <p className="p-3 rounded-xl bg-brand-violet/5 ring-1 ring-brand-violet/10 text-sm text-slate-200 leading-relaxed">
+      <p className="p-3 rounded-xl bg-brand-violet/5 ring-1 ring-brand-violet/10 text-sm text-slate-800 leading-relaxed">
         {notes}
       </p>
     </section>

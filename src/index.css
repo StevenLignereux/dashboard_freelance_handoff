@@ -11,14 +11,15 @@
 
   body {
     -webkit-font-smoothing: antialiased;
+    background-color: #FAF8F4;
     background-image: radial-gradient(
         ellipse 80% 60% at 50% -20%,
-        rgba(124, 92, 255, 0.08),
+        rgba(124, 92, 255, 0.06),
         transparent 60%
       ),
       radial-gradient(
         ellipse 60% 50% at 100% 100%,
-        rgba(34, 211, 238, 0.06),
+        rgba(34, 211, 238, 0.04),
         transparent 60%
       );
     background-attachment: fixed;
@@ -38,35 +39,35 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a3040;
+    background: #D7D2E0;
     border-radius: 8px;
-    border: 2px solid #0d0f14;
+    border: 2px solid #FAF8F4;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a4256;
+    background: #B9B0CC;
   }
 }
 
 @layer components {
   .surface {
-    @apply bg-bg-surface border border-white/5 rounded-2xl shadow-card;
+    @apply bg-bg-surface border border-brand-violet/10 rounded-2xl shadow-card;
   }
 
   .btn-ghost {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded-xl
-      text-slate-300 hover:text-white
-      hover:bg-white/5 active:scale-[0.98]
+      text-slate-600 hover:text-slate-900
+      hover:bg-brand-violet/5 active:scale-[0.98]
       transition-all duration-150 ease-snap;
   }
 
   .btn-toggle {
     @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-      text-slate-400 hover:text-white hover:bg-white/5
+      text-slate-500 hover:text-slate-900 hover:bg-brand-violet/5
       transition-all duration-150 ease-snap;
   }
 
   .btn-toggle-active {
-    @apply text-white bg-white/10 shadow-inner;
+    @apply text-brand-violet bg-brand-violet/10 ring-1 ring-brand-violet/20;
   }
 
   .chip {
@@ -74,19 +75,18 @@
   }
 
   .divider {
-    @apply h-px w-full bg-white/5;
+    @apply h-px w-full bg-brand-violet/10;
   }
 
   .input {
     @apply rounded-xl
-      bg-white/5
-      border border-white/10
+      bg-white
+      border border-slate-200
       px-3.5 py-2.5
-      text-sm text-white
-      placeholder:text-slate-500
-      hover:border-white/20
-      focus:border-brand-violet/70
-      focus:bg-white/[0.07]
+      text-sm text-slate-900
+      placeholder:text-slate-400
+      hover:border-brand-violet/40
+      focus:border-brand-violet focus:ring-2 focus:ring-brand-violet/10
       disabled:opacity-60 disabled:cursor-not-allowed
       transition-colors duration-150;
   }
@@ -103,17 +103,17 @@
 
 @layer utilities {
   .text-shadow-glow {
-    text-shadow: 0 0 12px rgba(124, 92, 255, 0.35);
+    text-shadow: 0 0 12px rgba(124, 92, 255, 0.25);
   }
 
   .card-foil {
     background-image: linear-gradient(
       125deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.04) 25%,
-      rgba(124, 92, 255, 0.08) 45%,
-      rgba(34, 211, 238, 0.06) 55%,
-      rgba(255, 255, 255, 0.04) 75%,
+      rgba(255, 255, 255, 0.25) 25%,
+      rgba(124, 92, 255, 0.14) 45%,
+      rgba(34, 211, 238, 0.12) 55%,
+      rgba(255, 255, 255, 0.22) 75%,
       transparent 100%
     );
     background-size: 220% 220%;
@@ -131,8 +131,8 @@
   }
 
   .card-inner-glow {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-      inset 0 -32px 64px -32px rgba(0, 0, 0, 0.6);
+    box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.06),
+      inset 0 -32px 64px -32px rgba(124, 92, 255, 0.08);
   }
 }
 

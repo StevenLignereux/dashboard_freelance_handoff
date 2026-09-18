@@ -103,7 +103,7 @@ export const relationshipMeta: Record<
   { label: string; chipBg: string; dotColor: string }
 > = {
   prospect: {
-    label: 'Prospect',
+    label: 'Premier contact',
     chipBg:
       'bg-brand-violet/15 text-brand-violet ring-1 ring-brand-violet/30',
     dotColor: 'bg-brand-violet',

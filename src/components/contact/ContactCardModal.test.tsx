@@ -7,10 +7,11 @@ import type {
   Contact,
   Exchange,
   Mission,
+  NextAction,
   Request,
 } from '../../types';
 import { seedContacts, seedRequests, seedMissions, seedExchanges } from '../../data/seedData';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateRequestInput } from '../../data/repositories/interface';
+import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateRequestInput } from '../../data/repositories/interface';
 
 function buildRepository(overrides?: Partial<IRepository>): IRepository {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -33,9 +34,16 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
       return Promise.resolve(c ?? sc[0]);
     },
     archiveContact: () => Promise.resolve(),
+    createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NextAction>>(),
     createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
     updateRequest: vi.fn<(requestId: string, input: UpdateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
+    updateRequestAction: () =>
+      Promise.reject(new Error('not implemented')),
+    createMission: () =>
+      Promise.reject(new Error('not implemented')),
+    updateMission: () =>
+      Promise.reject(new Error('not implemented')),
     ...overrides,
   };
 }

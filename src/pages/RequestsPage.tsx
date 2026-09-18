@@ -22,19 +22,19 @@ function RequestRow({ r, contactName, onOpenContact }: { r: Request; contactName
       <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-display font-semibold text-white truncate">{r.title}</h3>
+            <h3 className="font-display font-semibold text-slate-900 truncate">{r.title}</h3>
             <StatusBadge status={r.status} />
-            {r.archived && <span className="chip bg-white/10 text-slate-400 ring-1 ring-white/10">Archivée</span>}
+            {r.archived && <span className="chip bg-brand-violet/10 text-slate-500 ring-1 ring-brand-violet/20">Archivée</span>}
           </div>
-          <p className="text-sm text-slate-400 mt-1 truncate">{contactName}</p>
+          <p className="text-sm text-slate-500 mt-1 truncate">{contactName}</p>
         </div>
         <div className="md:w-[45%] lg:w-[40%] shrink-0">
           {r.archived ? (
-            <p className="text-xs text-slate-500">Demande archivée</p>
+            <p className="text-xs text-slate-400">Demande archivée</p>
           ) : action ? (
             <NextActionView action={action} variant="compact" />
           ) : (
-            <p className="text-xs text-slate-500">Aucune action prévue</p>
+            <p className="text-xs text-slate-400">Aucune action prévue</p>
           )}
         </div>
       </div>
@@ -78,10 +78,10 @@ export function RequestsPage({ onOpenContact }: RequestsPageProps) {
     <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 max-w-[1600px] mx-auto space-y-6">
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <h1 className="font-display font-bold text-white text-2xl sm:text-3xl tracking-tight">
+          <h1 className="font-display font-bold text-slate-900 text-2xl sm:text-3xl tracking-tight">
             Demandes
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Suivi de toutes les demandes entrantes et de leurs prochaines actions.
           </p>
         </div>

@@ -8,13 +8,24 @@
  */
 
 import { supabase } from '../../lib/supabase/client';
-import type { Contact, Exchange, Mission, Request } from '../../types';
-import type { CreateContactInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from './interface';
+import type { Contact, Exchange, Mission, NextAction, NextActionType, Request } from '../../types';
+import type {
+  CreateContactInput,
+  CreateMissionInput,
+  CreateRequestActionInput,
+  CreateRequestInput,
+  IRepository,
+  UpdateContactInput,
+  UpdateMissionInput,
+  UpdateRequestActionInput,
+  UpdateRequestInput,
+} from './interface';
 import {
   mapContact,
   mapRequest,
   mapMission,
   mapExchange,
+  mapNextAction,
 } from '../mappers';
 import type {
   DbContact,
@@ -23,6 +34,7 @@ import type {
   DbExchange,
   DbRequestAction,
   DbRelationshipType,
+  DbRequestActionType,
 } from '../dbTypes';
 
 const RELATIONSHIP_TYPE_REVERSE_MAP: Record<string, DbRelationshipType> = {
@@ -30,6 +42,17 @@ const RELATIONSHIP_TYPE_REVERSE_MAP: Record<string, DbRelationshipType> = {
   client: 'client',
   client_recurrent: 'client_recurrent',
   ancien_client: 'ancien_client',
+};
+
+const ACTION_TYPE_REVERSE_MAP: Record<NextActionType, DbRequestActionType> = {
+  relance: 'relance',
+  proposition: 'proposition',
+  appel: 'appel',
+  devis: 'devis',
+  documents: 'documents',
+  precision: 'precision',
+  echange: 'echange',
+  autre: 'autre',
 };
 
 export class SupabaseRepository implements IRepository {
@@ -419,7 +442,186 @@ export class SupabaseRepository implements IRepository {
     return mapRequest(updatedData as DbRequest, openAction);
   }
 
+
+  async createRequestAction(
+    input: CreateRequestActionInput,
+  ): Promise<NextAction> {
+    this.ensureSupabaseConfigured();
+
+    const sb = this.getSupabase();
+    const userId = await this.getCurrentUserId();
+
+    const { data: requestData, error: requestError } = await sb
+      .from('requests')
+      .select('id, archived')
+      .eq('id', input.requestId)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new Error(
+        `Failed to load request id=${input.requestId}: ${requestError.message}`
+      );
+    }
+
+    if (!requestData) {
+      throw new Error(
+        `Cannot create request action: request id=${input.requestId} not found.`
+      );
+    }
+
+    if (requestData.archived) {
+      throw new Error(
+        `Cannot create request action: request id=${input.requestId} is archived.`
+      );
+    }
+
+    const dbAction = {
+      user_id: userId,
+      request_id: input.requestId,
+      type: ACTION_TYPE_REVERSE_MAP[input.type],
+      label: input.label,
+      due_at: input.dueDate,
+      completed_at: null,
+    };
+
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const actionResult: unknown = await (sb.from('request_actions') as any)
+      .insert(dbAction)
+      .select()
+      .single();
+    /* eslint-enable */
+
+    const { data, error } = actionResult as {
+      data: DbRequestAction | null;
+      error: { message: string } | null;
+    };
+
+    if (error) {
+      throw new Error(
+        `Failed to create request action for request id=${input.requestId}: ${error.message}`
+      );
+    }
+
+    if (!data) {
+      throw new Error(
+        `Failed to create request action for request id=${input.requestId}: no row returned`
+      );
+    }
+
+    return mapNextAction(data);
+  }
+
+  async updateRequestAction(
+    actionId: string,
+    input: UpdateRequestActionInput
+  ): Promise<NextAction> {
+    this.ensureSupabaseConfigured();
+
+    const sb = this.getSupabase();
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const { data: actionData, error: actionError } = await (
+      sb.from('request_actions') as any
+    )
+      .select('*')
+      .eq('id', actionId)
+      .maybeSingle();
+    /* eslint-enable */
+
+    if (actionError) {
+      throw new Error(
+        `Failed to load request action id=${actionId}: ${actionError.message}` // eslint-disable-line @typescript-eslint/no-unsafe-member-access
+      );
+    }
+
+    if (!actionData) {
+      throw new Error(
+        `Cannot update request action: action id=${actionId} not found.`
+      );
+    }
+
+    const existingAction = actionData as DbRequestAction;
+
+    if (existingAction.completed_at !== null) {
+      throw new Error(
+        `Cannot update request action: action id=${actionId} is completed.`
+      );
+    }
+
+    const { data: requestData, error: requestError } = await sb
+      .from('requests')
+      .select('id, archived')
+      .eq('id', existingAction.request_id)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new Error(
+        `Failed to load request id=${existingAction.request_id}: ${requestError.message}`
+      );
+    }
+
+    if (!requestData) {
+      throw new Error(
+        `Cannot update request action: request id=${existingAction.request_id} not found.`
+      );
+    }
+
+    if (requestData.archived) {
+      throw new Error(
+        `Cannot update request action: request id=${existingAction.request_id} is archived.`
+      );
+    }
+
+    const patch: Record<string, unknown> = {};
+
+    if (input.type !== undefined) {
+      patch.type = ACTION_TYPE_REVERSE_MAP[input.type];
+    }
+
+    if (input.label !== undefined) {
+      patch.label = input.label;
+    }
+
+    if (input.dueDate !== undefined) {
+      patch.due_at = input.dueDate;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return mapNextAction(existingAction);
+    }
+
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+    const updateResult: unknown = await (sb.from('request_actions') as any)
+      .update(patch)
+      .eq('id', actionId)
+      .is('completed_at', null)
+      .select()
+      .single();
+    /* eslint-enable */
+
+    const { data, error } = updateResult as {
+      data: DbRequestAction | null;
+      error: { message: string } | null;
+    };
+
+    if (error) {
+      throw new Error(
+        `Failed to update request action id=${actionId}: ${error.message}`
+      );
+    }
+
+    if (!data) {
+      throw new Error(
+        `Failed to update request action id=${actionId}: no row returned`
+      );
+    }
+
+    return mapNextAction(data);
+  }
+
   async archiveRequest(requestId: string): Promise<void> {
+
+
     this.ensureSupabaseConfigured();
     const sb = this.getSupabase();
 
@@ -439,4 +641,54 @@ export class SupabaseRepository implements IRepository {
       throw new Error(`Failed to archive request: no row updated for id=${requestId}`);
     }
   }
+
+  async createMission(input: CreateMissionInput): Promise<Mission> {
+    this.ensureSupabaseConfigured();
+    const userId = await this.getCurrentUserId();
+    const sb = this.getSupabase();
+    const now = new Date().toISOString();
+    const { data, error } = await sb
+      .from('missions')
+      .insert({
+        user_id: userId,
+        request_id: input.requestId,
+        title: input.title,
+        status: input.status ?? 'a_demarrer',
+        progress: input.progress ?? 0,
+        notes: input.notes ?? null,
+        start_date: now,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(`Failed to create mission: ${error.message}`);
+    return mapMission(data, input.contactId);
+  }
+
+  async updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission> {
+    this.ensureSupabaseConfigured();
+    const sb = this.getSupabase();
+    const patch: Partial<DbMission> = {};
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.status !== undefined) patch.status = input.status;
+    if (input.progress !== undefined) patch.progress = input.progress;
+    if (input.notes !== undefined) patch.notes = input.notes ?? null;
+    const { data, error } = await sb
+      .from('missions')
+      .update(patch)
+      .eq('id', missionId)
+      .select()
+      .single();
+    if (error) throw new Error(`Failed to update mission ${missionId}: ${error.message}`);
+    const dbMission = data;
+    const { data: reqData, error: reqErr } = await sb
+      .from('requests')
+      .select('contact_id')
+      .eq('id', dbMission.request_id)
+      .maybeSingle();
+    if (reqErr) throw new Error(`Failed to resolve contact for mission: ${reqErr.message}`);
+    const contactId = reqData?.contact_id;
+    if (!contactId) throw new Error(`Mission ${missionId} réfère une request sans contact_id`);
+    return mapMission(dbMission, contactId);
+  }
 }
+

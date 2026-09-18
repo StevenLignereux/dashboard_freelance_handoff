@@ -36,7 +36,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [mobileOpen, handleCloseMobile]);
 
   return (
-    <div className="min-h-full flex bg-bg text-slate-100">
+    <div className="min-h-full flex bg-bg text-slate-800">
       <Sidebar
         activeNav={store.nav.active}
         onNavigate={store.nav.setActive}

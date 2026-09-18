@@ -36,10 +36,10 @@ export function LoginPage() {
     <div className="min-h-screen w-full flex items-center justify-center px-4 py-12 sm:py-16">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
             Freelance Handoff
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-slate-500">
             Connectez-vous pour accéder à votre tableau de bord.
           </p>
         </div>
@@ -47,12 +47,12 @@ export function LoginPage() {
         <form
           onSubmit={handleSubmit}
           noValidate
-          className="w-full rounded-2xl bg-bg-surface/70 border border-white/10 p-5 sm:p-6 space-y-4"
+          className="w-full rounded-2xl bg-bg-surface/70 border border-brand-violet/20 p-5 sm:p-6 space-y-4"
         >
           <div className="space-y-1.5">
             <label
               htmlFor="login-email"
-              className="block text-xs font-medium text-slate-300"
+              className="block text-xs font-medium text-slate-700"
             >
               Email
             </label>
@@ -78,7 +78,7 @@ export function LoginPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="login-password"
-              className="block text-xs font-medium text-slate-300"
+              className="block text-xs font-medium text-slate-700"
             >
               Mot de passe
             </label>

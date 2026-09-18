@@ -16,13 +16,13 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
     ? 'text-brand-coral'
     : isToday
     ? 'text-brand-violet'
-    : 'text-slate-300';
+    : 'text-slate-700';
 
   const iconBg = isOverdue
     ? 'bg-brand-coral/15 text-brand-coral ring-1 ring-brand-coral/30'
     : isToday
     ? 'bg-brand-violet/15 text-brand-violet ring-1 ring-brand-violet/30'
-    : 'bg-white/5 text-slate-400 ring-1 ring-white/10';
+    : 'bg-brand-violet/10 text-slate-500 ring-1 ring-brand-violet/20';
 
   const icon = isOverdue ? (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
@@ -62,7 +62,7 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
           <div className={`text-[12px] font-medium ${toneClass} truncate`} title={actionLabel}>
             {actionLabel}
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 min-w-0">
+          <div className="text-[11px] text-slate-400 flex items-center gap-1.5 min-w-0">
             <span className="truncate">{scheduleLabel}</span>
           </div>
         </div>
@@ -78,7 +78,7 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
           ? 'bg-brand-coral/5 ring-brand-coral/15'
           : isToday
           ? 'bg-brand-violet/5 ring-brand-violet/15'
-          : 'bg-white/5 ring-white/5',
+          : 'bg-brand-violet/5 ring-brand-violet/10',
       ].join(' ')}
     >
       <span
@@ -91,7 +91,7 @@ export function NextActionView({ action, variant = 'standard' }: NextActionProps
         <div className={`text-sm font-semibold ${toneClass} truncate`} title={actionLabel}>
           {actionLabel}
         </div>
-        <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap min-w-0">
+        <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap min-w-0">
           <span className="truncate">{scheduleLabel}</span>
           {isOverdue && action.overdueDays && (
             <>
