@@ -17,7 +17,7 @@ import {
 } from 'react';
 import type { Contact, Exchange, Mission, NavItemKey, NextAction, Request } from '../types';
 import { clock } from '../config/clock';
-import type { CreateContactInput, CreateMissionInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateMissionInput, UpdateRequestInput, UpdateRequestActionInput } from '../data/repositories/interface';
+import type { CreateContactInput, CreateMissionInput, CreateRequestActionInput, CreateRequestInput, CreateExchangeInput, IRepository, UpdateContactInput, UpdateMissionInput, UpdateRequestInput, UpdateRequestActionInput } from '../data/repositories/interface';
 import { createRepository } from '../data/repositories/factory';
 
 interface AppStoreDataSlice {
@@ -38,6 +38,7 @@ interface AppStoreDataSlice {
   createRequestAction: (input: CreateRequestActionInput) => Promise<NextAction>;
   updateRequestAction: (actionId: string, input: UpdateRequestActionInput) => Promise<NextAction>;
   archiveRequest: (requestId: string) => Promise<void>;
+  createExchange: (input: CreateExchangeInput) => Promise<Exchange>;
 }
 
 interface AppStoreValue {
@@ -337,6 +338,46 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
     return updated;
   }, []);
 
+  const createExchange = useCallback<AppStoreDataSlice['createExchange']>(async (input) => {
+    const repo = repositoryRef.current;
+    const created = await repo.createExchange(input);
+    const createdDateTs = new Date(created.date).getTime();
+
+    setExchanges((prev) => {
+      if (prev.some((e) => e.id === created.id)) return prev;
+      const combined = [created, ...prev];
+      return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+
+    setRequests((prev) => {
+      const idx = prev.findIndex((r) => r.id === input.requestId);
+      if (idx === -1) return prev;
+      const current = prev[idx];
+      const currentLastActivityTs = current.lastActivityAt ? new Date(current.lastActivityAt).getTime() : 0;
+      if (createdDateTs <= currentLastActivityTs) return prev;
+      const next = prev.slice();
+      next[idx] = { ...current, lastActivityAt: created.date };
+      return next;
+    });
+
+    setContacts((prev) => {
+      const currentRequests = requests;
+      const requestIdx = currentRequests.findIndex((r) => r.id === input.requestId);
+      if (requestIdx === -1) return prev;
+      const relatedRequest = currentRequests[requestIdx];
+      const contactIdx = prev.findIndex((c) => c.id === relatedRequest.contactId);
+      if (contactIdx === -1) return prev;
+      const currentContact = prev[contactIdx];
+      const contactLastActivityTs = currentContact.lastActivityAt ? new Date(currentContact.lastActivityAt).getTime() : 0;
+      if (createdDateTs <= contactLastActivityTs) return prev;
+      const next = prev.slice();
+      next[contactIdx] = { ...currentContact, lastActivityAt: created.date };
+      return next;
+    });
+
+    return created;
+  }, [requests]);
+
   const data: AppStoreDataSlice = useMemo(
     () => ({
       contacts,
@@ -356,8 +397,9 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       createRequestAction,
       updateRequestAction,
       archiveRequest,
+      createExchange,
     }),
-    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, createMission, updateMission, createRequestAction, updateRequestAction, archiveRequest]
+    [contacts, requests, missions, exchanges, loading, error, reload, addContact, updateContact, archiveContact, addRequest, updateRequest, createMission, updateMission, createRequestAction, updateRequestAction, archiveRequest, createExchange]
   );
 
   const value: AppStoreValue = useMemo(
