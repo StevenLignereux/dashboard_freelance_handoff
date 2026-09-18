@@ -56,6 +56,7 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
       Promise.reject(new Error('not implemented')),
     updateMission: () =>
       Promise.reject(new Error('not implemented')),
+    createExchange: overrides?.createExchange ?? (() => Promise.reject(new Error('not implemented'))),
     ...overrides,
     updateContact: updateContactSpy,
     updateContactSpy,
@@ -129,7 +130,7 @@ describe('ContactEditModal — 17. Formulaire prérempli', () => {
     expect(phoneInput).toHaveValue('+33 6 00 00 00 00');
     expect(notesInput).toHaveValue('Premières impressions positives, budget ~8k€');
 
-    const prospectBtn = screen.getByText('Prospect', { selector: 'button' });
+    const prospectBtn = screen.getByText('Premier contact', { selector: 'button' });
     expect(prospectBtn).toBeInTheDocument();
     expect(prospectBtn).toHaveAttribute('aria-pressed', 'true');
   });

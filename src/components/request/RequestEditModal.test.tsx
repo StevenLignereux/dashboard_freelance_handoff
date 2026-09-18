@@ -57,12 +57,26 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     createRequestAction: vi.fn<(input: CreateRequestActionInput) => Promise<NextAction>>(),
     createRequest: vi.fn<(input: CreateRequestInput) => Promise<Request>>(),
     archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
-    updateRequestAction: () =>
-      Promise.reject(new Error('not implemented')),
+    updateRequestAction:
+      overrides?.updateRequestAction ??
+      ((actionId, input) => {
+        const req = sr.find((r) => r.nextAction?.id === actionId);
+        if (!req?.nextAction) {
+          return Promise.reject(new Error(`updateRequestAction: action ${actionId} not found`));
+        }
+        const merged: NextAction = {
+          ...req.nextAction,
+          ...(input.type !== undefined ? { type: input.type } : {}),
+          ...(input.label !== undefined ? { label: input.label } : {}),
+          ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
+        };
+        return Promise.resolve(merged);
+      }),
     createMission: () =>
       Promise.reject(new Error('not implemented')),
     updateMission: () =>
       Promise.reject(new Error('not implemented')),
+    createExchange: overrides?.createExchange ?? (() => Promise.reject(new Error('not implemented'))),
     ...overrides,
     updateRequest: updateRequestSpy,
     updateRequestSpy,

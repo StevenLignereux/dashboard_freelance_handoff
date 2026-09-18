@@ -44,6 +44,7 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
       Promise.reject(new Error('not implemented')),
     updateMission: () =>
       Promise.reject(new Error('not implemented')),
+    createExchange: overrides?.createExchange ?? (() => Promise.reject(new Error('not implemented'))),
     ...overrides,
   };
 }

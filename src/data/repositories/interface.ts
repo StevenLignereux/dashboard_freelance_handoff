@@ -152,5 +152,6 @@ export interface IRepository {
   updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request>;
   createMission(input: CreateMissionInput): Promise<Mission>;
   updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission>;
+  createExchange(input: CreateExchangeInput): Promise<Exchange>;
   archiveRequest(requestId: string): Promise<void>;
 }
