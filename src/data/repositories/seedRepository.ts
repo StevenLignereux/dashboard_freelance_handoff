@@ -353,7 +353,8 @@ export class SeedRepository implements IRepository {
 
     this.exchanges.push(newExchange);
 
-    if (input.date > request.lastActivityAt) {
+    const inputDateTimestamp = new Date(input.date).getTime();
+    if (inputDateTimestamp > new Date(request.lastActivityAt).getTime()) {
       this.requests[requestIndex] = {
         ...request,
         lastActivityAt: input.date,
@@ -363,7 +364,7 @@ export class SeedRepository implements IRepository {
     const contactIndex = this.contacts.findIndex((c) => c.id === request.contactId);
     if (contactIndex !== -1) {
       const contact = this.contacts[contactIndex];
-      if (input.date > contact.lastActivityAt) {
+      if (inputDateTimestamp > new Date(contact.lastActivityAt).getTime()) {
         this.contacts[contactIndex] = {
           ...contact,
           lastActivityAt: input.date,
