@@ -3,7 +3,15 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { useRef } from 'react';
 import type { Contact, Exchange, Mission, NextAction, Request } from '../types';
-import type { CreateContactInput, CreateRequestActionInput, CreateRequestInput, IRepository, UpdateContactInput, UpdateRequestInput } from '../data/repositories/interface';
+import type {
+  CreateContactInput,
+  CreateExchangeInput,
+  CreateRequestActionInput,
+  CreateRequestInput,
+  IRepository,
+  UpdateContactInput,
+  UpdateRequestInput,
+} from '../data/repositories/interface';
 import { AppStoreProvider, useAppStore, type AppStoreData } from './AppStore';
 import * as factoryModule from '../data/repositories/factory';
 
@@ -18,6 +26,7 @@ type RepositorySpy = IRepository & {
   createRequestSpy: Mock<(input: CreateRequestInput) => Promise<Request>>;
   updateRequestSpy: Mock<(requestId: string, input: UpdateRequestInput) => Promise<Request>>;
   createRequestActionSpy: Mock<(input: CreateRequestActionInput) => Promise<NextAction>>;
+  createExchangeSpy: Mock<(input: CreateExchangeInput) => Promise<Exchange>>;
   archiveRequestSpy: Mock<(requestId: string) => Promise<void>>;
 };
 
@@ -93,6 +102,13 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
         (() => Promise.reject(new Error('not implemented')))
     );
 
+  const createExchangeSpy = vi
+    .fn<(input: CreateExchangeInput) => Promise<Exchange>>()
+    .mockImplementation(
+      overrides?.createExchange ??
+        (() => Promise.reject(new Error('not implemented')))
+    );
+
   return {
     loadContacts: loadContactsSpy,
     loadRequests: loadRequestsSpy,
@@ -108,8 +124,7 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
       Promise.reject(new Error('not implemented')),
     updateMission: () =>
       Promise.reject(new Error('not implemented')),
-    createExchange: () =>
-      Promise.reject(new Error('not implemented')),
+    createExchange: createExchangeSpy,
     createRequest: createRequestSpy,
     updateRequest: updateRequestSpy,
     archiveRequest: archiveRequestSpy,
@@ -123,6 +138,7 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     createRequestSpy,
     updateRequestSpy,
     createRequestActionSpy,
+    createExchangeSpy,
     archiveRequestSpy,
   };
 }
@@ -224,6 +240,30 @@ const SAMPLE_NEXT_ACTION: NextAction = {
   type: 'appel',
   label: 'Appeler le client',
   dueDate: '2024-06-20T10:00:00Z',
+};
+
+const SAMPLE_EXCHANGE_OLD: Exchange = {
+  id: 'e-old',
+  requestId: 'r-1',
+  type: 'email',
+  date: '2024-06-03T10:00:00Z',
+  summary: 'Premier échange',
+};
+
+const SAMPLE_EXCHANGE_CREATED: Exchange = {
+  id: 'e-new',
+  requestId: 'r-1',
+  type: 'appel',
+  date: '2024-06-10T10:00:00Z',
+  summary: 'Point sur la demande',
+};
+
+const SAMPLE_EXCHANGE_RECENT: Exchange = {
+  id: 'e-recent',
+  requestId: 'r-other',
+  type: 'note',
+  date: '2024-06-20T10:00:00Z',
+  summary: 'Échange sur une autre demande',
 };
 
 describe('AppStore → Repository', () => {
@@ -1364,6 +1404,136 @@ describe('AppStore → Repository', () => {
 
       expect(getLatest().requests).toEqual(before);
       expect(getLatest().requests).toHaveLength(1);
+    });
+  });
+
+  describe('createExchange', () => {
+    it('47. appelle repository.createExchange avec le payload et retourne son échange', async () => {
+      const repo = buildRepository({
+        loadContacts: () => Promise.resolve([SAMPLE_CONTACT_JEAN]),
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        createExchange: () => Promise.resolve(SAMPLE_EXCHANGE_CREATED),
+      });
+      const { Capture, getLatest } = snap('capture-47', (d) => d);
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().loading).toBe(false);
+      });
+
+      const payload: CreateExchangeInput = {
+        requestId: SAMPLE_REQUEST_1.id,
+        type: 'appel',
+        date: '2024-06-10T10:00:00Z',
+        summary: 'Point sur la demande',
+      };
+
+      const result = await act(async () => getLatest().createExchange(payload));
+
+      expect(repo.createExchangeSpy).toHaveBeenCalledTimes(1);
+      expect(repo.createExchangeSpy).toHaveBeenCalledWith(payload);
+      expect(result).toBe(SAMPLE_EXCHANGE_CREATED);
+    });
+
+    it('48. ajoute et trie les échanges par date décroissante et actualise les lastActivityAt liés', async () => {
+      const otherRequest: Request = {
+        ...SAMPLE_REQUEST_CREATED,
+        id: 'r-other',
+        contactId: SAMPLE_CONTACT_CREATED.id,
+      };
+      const repo = buildRepository({
+        loadContacts: () =>
+          Promise.resolve([SAMPLE_CONTACT_JEAN, SAMPLE_CONTACT_CREATED]),
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1, otherRequest]),
+        loadExchanges: () =>
+          Promise.resolve([SAMPLE_EXCHANGE_RECENT, SAMPLE_EXCHANGE_OLD]),
+        createExchange: () => Promise.resolve(SAMPLE_EXCHANGE_CREATED),
+      });
+      const { Capture, getLatest } = snap('capture-48', (d) => d);
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().loading).toBe(false);
+      });
+
+      await act(async () => {
+        await getLatest().createExchange({
+          requestId: SAMPLE_EXCHANGE_CREATED.requestId,
+          type: SAMPLE_EXCHANGE_CREATED.type,
+          date: SAMPLE_EXCHANGE_CREATED.date,
+          summary: SAMPLE_EXCHANGE_CREATED.summary,
+        });
+      });
+
+      const after = getLatest();
+      expect(after.exchanges).toEqual([
+        SAMPLE_EXCHANGE_RECENT,
+        SAMPLE_EXCHANGE_CREATED,
+        SAMPLE_EXCHANGE_OLD,
+      ]);
+      expect(after.requests).toEqual([
+        { ...SAMPLE_REQUEST_1, lastActivityAt: SAMPLE_EXCHANGE_CREATED.date },
+        otherRequest,
+      ]);
+      expect(after.contacts).toEqual([
+        { ...SAMPLE_CONTACT_JEAN, lastActivityAt: SAMPLE_EXCHANGE_CREATED.date },
+        SAMPLE_CONTACT_CREATED,
+      ]);
+    });
+
+    it('49. ajoute un échange historique sans faire reculer les lastActivityAt', async () => {
+      const contact: Contact = {
+        ...SAMPLE_CONTACT_JEAN,
+        lastActivityAt: '2024-06-12T10:00:00Z',
+      };
+      const request: Request = {
+        ...SAMPLE_REQUEST_1,
+        lastActivityAt: '2024-06-10T10:00:00Z',
+      };
+      const repo = buildRepository({
+        loadContacts: () => Promise.resolve([contact]),
+        loadRequests: () => Promise.resolve([request]),
+        loadExchanges: () => Promise.resolve([SAMPLE_EXCHANGE_CREATED]),
+        createExchange: () => Promise.resolve(SAMPLE_EXCHANGE_OLD),
+      });
+      const { Capture, getLatest } = snap('capture-49', (d) => d);
+
+      render(
+        <AppStoreProvider repository={repo}>
+          <Capture />
+        </AppStoreProvider>
+      );
+
+      await waitFor(() => {
+        expect(getLatest().loading).toBe(false);
+      });
+
+      await act(async () => {
+        await getLatest().createExchange({
+          requestId: SAMPLE_EXCHANGE_OLD.requestId,
+          type: SAMPLE_EXCHANGE_OLD.type,
+          date: SAMPLE_EXCHANGE_OLD.date,
+          summary: SAMPLE_EXCHANGE_OLD.summary,
+        });
+      });
+
+      const after = getLatest();
+      expect(after.exchanges).toEqual([
+        SAMPLE_EXCHANGE_CREATED,
+        SAMPLE_EXCHANGE_OLD,
+      ]);
+      expect(after.requests).toEqual([request]);
+      expect(after.contacts).toEqual([contact]);
     });
   });
 
