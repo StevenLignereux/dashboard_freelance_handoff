@@ -16,6 +16,7 @@ import { RequestArchiveConfirmation } from './components/request/RequestArchiveC
 import { RequestActionCreateModal } from './components/request/RequestActionCreateModal';
 import { MissionCreateModal } from './components/mission/MissionCreateModal';
 import { MissionEditModal } from './components/mission/MissionEditModal';
+import { ExchangeCreateModal } from './components/exchange/ExchangeCreateModal';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginPage } from './pages/LoginPage';
 
@@ -112,12 +113,14 @@ function Router() {
   const [creatingRequestActionForRequestId, setCreatingRequestActionForRequestId] = useState<string | null>(null);
   const [creatingMissionRequestId, setCreatingMissionRequestId] = useState<string | null>(null);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
+  const [creatingExchangeRequestId, setCreatingExchangeRequestId] = useState<string | null>(null);
   type PendingRequestModal =
     | { type: 'create'; contactId: string }
     | { type: 'edit'; requestId: string }
     | { type: 'archive'; requestId: string }
     | { type: 'action'; requestId: string }
     | { type: 'mission-create'; requestId: string }
+    | { type: 'exchange-create'; requestId: string }
     | null;
   const [pendingRequestModal, setPendingRequestModal] = useState<PendingRequestModal>(null);
 
@@ -201,6 +204,9 @@ function Router() {
         break;
       case 'mission-create':
         setCreatingMissionRequestId(pending.requestId);
+        break;
+      case 'exchange-create':
+        setCreatingExchangeRequestId(pending.requestId);
         break;
     }
   }, [pendingRequestModal]);
@@ -306,6 +312,25 @@ function Router() {
     setEditingMissionId(null);
   }, []);
 
+  const handleCreateExchange = useCallback((requestId: string) => {
+    const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
+    if (!contactId) return;
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
+    setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'exchange-create', requestId });
+    setActiveContact(null);
+  }, [store.data.requests, activeContact]);
+
+  const handleCancelCreateExchange = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setCreatingExchangeRequestId(null);
+    setPendingRequestModal(null);
+    setPreRequestPayload(null);
+    if (toReopen) {
+      setActiveContact(toReopen);
+    }
+  }, [preRequestPayload]);
+
   const handleArchivedRequest = useCallback(() => {
     setArchivingRequestId(null);
     setActiveContact(null);
@@ -355,6 +380,7 @@ function Router() {
             onArchiveRequest={handleArchiveRequest}
             onCreateRequestAction={handleCreateRequestAction}
             onCreateMission={handleCreateMission}
+            onCreateExchange={handleCreateExchange}
           />
           <ContactCreateModal
             open={createOpen}
@@ -394,6 +420,10 @@ function Router() {
           <MissionEditModal
             missionId={editingMissionId}
             onClose={handleCancelEditMission}
+          />
+          <ExchangeCreateModal
+            requestId={creatingExchangeRequestId}
+            onClose={handleCancelCreateExchange}
           />
         </>
       )}

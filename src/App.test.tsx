@@ -248,6 +248,7 @@ function buildMiniRepo(overrides?: Partial<IRepository>): IRepository {
     updateRequestAction: overrides?.updateRequestAction ?? (() => Promise.reject(new Error('not implemented'))),
     createMission: overrides?.createMission ?? (() => Promise.reject(new Error('not implemented'))),
     updateMission: overrides?.updateMission ?? (() => Promise.reject(new Error('not implemented'))),
+    createExchange: overrides?.createExchange ?? (() => Promise.reject(new Error('not implemented'))),
   };
 }
 

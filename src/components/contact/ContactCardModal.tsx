@@ -26,6 +26,7 @@ interface ContactCardModalProps {
   onEditRequest?: (requestId: string) => void;
   onArchiveRequest?: (requestId: string) => void;
   onCreateMission?: (requestId: string) => void;
+  onCreateExchange?: (requestId: string) => void;
 }
 
 const exchangeMeta: Record<string, { label: string; color: string }> = {
@@ -55,7 +56,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission, onCreateExchange }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -278,6 +279,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
                     onArchiveRequest={onArchiveRequest}
                     onCreateRequestAction={onCreateRequestAction}
                     onCreateMission={onCreateMission}
+                    onCreateExchange={onCreateExchange}
                   />
                 ) : (
                   !contact.archived && (
@@ -421,7 +423,7 @@ function ContactIdentity({ contact }: { contact: Contact }) {
   );
 }
 
-function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void; onCreateRequestAction?: (requestId: string) => void; onCreateMission?: (requestId: string) => void }) {
+function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission, onCreateExchange }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void; onCreateRequestAction?: (requestId: string) => void; onCreateMission?: (requestId: string) => void; onCreateExchange?: (requestId: string) => void }) {
   return (
     <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-brand-violet/5 ring-1 ring-brand-violet/10">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -449,7 +451,7 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
       <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
         <span>Créée le {formatDueDate(request.createdAt).dateLabel}</span>
       </div>
-      {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction ?? onCreateMission) && (
+      {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction ?? onCreateMission ?? onCreateExchange) && (
         <div className="flex items-center gap-2 pt-2 mt-3 border-t border-brand-violet/10 flex-wrap">
           {onCreateMission && (
             <button
@@ -468,6 +470,18 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
                 <path d="m16.24 7.76 2.83-2.83" />
               </svg>
               Créer une mission
+            </button>
+          )}
+          {onCreateExchange && (
+            <button
+              type="button"
+              onClick={() => { onCreateExchange(request.id); }}
+              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 text-brand-cyan hover:bg-brand-cyan/10"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              Ajouter un échange
             </button>
           )}
           {!request.nextAction && onCreateRequestAction && (

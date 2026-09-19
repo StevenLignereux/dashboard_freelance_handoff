@@ -137,6 +137,8 @@ const NOOP_REPO: IRepository = {
     Promise.reject(new Error('not implemented')),
   updateMission: () =>
     Promise.reject(new Error('not implemented')),
+  createExchange: () =>
+    Promise.reject(new Error('not implemented')),
 };
 
 function wrap(children: ReactNode, authClient: FakeAuthClient) {

@@ -44,6 +44,7 @@ function buildRepository(overrides?: Partial<IRepository>): IRepository {
       Promise.reject(new Error('not implemented')),
     updateMission: () =>
       Promise.reject(new Error('not implemented')),
+    createExchange: overrides?.createExchange ?? (() => Promise.reject(new Error('not implemented'))),
     ...overrides,
   };
 }
@@ -324,5 +325,58 @@ describe('ContactCardModal — Backend3A : boutons Modifier et Archiver', () => 
     await waitForDataLoaded();
 
     expect(screen.queryByRole('button', { name: /Archiver/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('ContactCardModal — Échange V1 : bouton Ajouter un échange', () => {
+  it('affiche le bouton Ajouter un échange si la prop onCreateExchange est fournie et la demande non archivée, puis invoque onCreateExchange avec le bon requestId', async () => {
+    const onClose = vi.fn();
+    const onCreateExchange = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-jean-dupont"
+            onClose={onClose}
+            onCreateExchange={onCreateExchange}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+
+    const btn = screen.getByRole('button', { name: /Ajouter un échange/i });
+    expect(btn).toBeInTheDocument();
+
+    fireEvent.click(btn);
+    expect(onCreateExchange).toHaveBeenCalledTimes(1);
+    const calls = onCreateExchange.mock.calls;
+    expect(calls).toHaveLength(1);
+    const rawArg = calls[0][0]; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+    expect(typeof rawArg).toBe('string');
+    const expectedIds = ['r-jean-site', 'r-jean-logo', 'r-jean-devis'];
+    expect(expectedIds).toContain(String(rawArg));
+  });
+
+  it('n’affiche pas le bouton Ajouter un échange si la prop onCreateExchange est absente', async () => {
+    const onClose = vi.fn();
+
+    render(
+      withWrapper(
+        <>
+          <DataReady />
+          <ContactCardModal
+            contactId="c-jean-dupont"
+            onClose={onClose}
+          />
+        </>
+      )
+    );
+
+    await waitForDataLoaded();
+    expect(screen.queryByRole('button', { name: /Ajouter un échange/i })).not.toBeInTheDocument();
   });
 });

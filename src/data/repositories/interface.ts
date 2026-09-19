@@ -4,7 +4,7 @@
  * Contient aussi le contrat d'entrée pour la création d'un contact.
  */
 
-import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType } from '../../types';
+import type { Contact, Exchange, Mission, RelationshipType, Request, NextActionType, ExchangeType } from '../../types';
 import type { NextAction } from '../../types';
 
 /**
@@ -87,6 +87,13 @@ export interface UpdateMissionInput {
   notes?: string | null;
 }
 
+export interface CreateExchangeInput {
+  requestId: string;
+  type: ExchangeType;
+  date: string;
+  summary: string;
+}
+
 export interface IRepository {
   /**
    * Charge tous les contacts avec leurs données dérivées.
@@ -145,5 +152,6 @@ export interface IRepository {
   updateRequest(requestId: string, input: UpdateRequestInput): Promise<Request>;
   createMission(input: CreateMissionInput): Promise<Mission>;
   updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission>;
+  createExchange(input: CreateExchangeInput): Promise<Exchange>;
   archiveRequest(requestId: string): Promise<void>;
 }

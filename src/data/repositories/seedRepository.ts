@@ -12,6 +12,7 @@ import type {
   CreateMissionInput,
   CreateRequestActionInput,
   CreateRequestInput,
+  CreateExchangeInput,
   IRepository,
   UpdateContactInput,
   UpdateMissionInput,
@@ -322,5 +323,55 @@ export class SeedRepository implements IRepository {
     };
     this.missions[idx] = updated;
     return Promise.resolve(updated);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async createExchange(input: CreateExchangeInput): Promise<Exchange> {
+    const requestIndex = this.requests.findIndex((r) => r.id === input.requestId);
+    if (requestIndex === -1) {
+      throw new Error(`Cannot create exchange: request id=${input.requestId} not found.`);
+    }
+
+    const request = this.requests[requestIndex];
+    if (request.archived) {
+      throw new Error(`Cannot create exchange: request id=${input.requestId} is archived.`);
+    }
+
+    const trimmedSummary = input.summary.trim();
+    if (trimmedSummary.length === 0) {
+      throw new Error(`Cannot create exchange: summary cannot be empty after trimming.`);
+    }
+
+    const exchangeId = `e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newExchange: Exchange = {
+      id: exchangeId,
+      requestId: input.requestId,
+      type: input.type,
+      date: input.date,
+      summary: trimmedSummary,
+    };
+
+    this.exchanges.push(newExchange);
+
+    const inputDateTimestamp = new Date(input.date).getTime();
+    if (inputDateTimestamp > new Date(request.lastActivityAt).getTime()) {
+      this.requests[requestIndex] = {
+        ...request,
+        lastActivityAt: input.date,
+      };
+    }
+
+    const contactIndex = this.contacts.findIndex((c) => c.id === request.contactId);
+    if (contactIndex !== -1) {
+      const contact = this.contacts[contactIndex];
+      if (inputDateTimestamp > new Date(contact.lastActivityAt).getTime()) {
+        this.contacts[contactIndex] = {
+          ...contact,
+          lastActivityAt: input.date,
+        };
+      }
+    }
+
+    return newExchange;
   }
 }
