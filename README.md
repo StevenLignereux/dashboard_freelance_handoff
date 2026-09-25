@@ -1,31 +1,34 @@
-# Kit de handoff — Dashboard freelance
+# Dashboard freelance
 
-Ce dossier contient tout le nécessaire pour lancer la première phase du projet dans Trae.
+CRM privé pour indépendant, construit avec React, TypeScript, Vite et Supabase. Il suit les contacts, les demandes, les échanges, les prochaines actions et les missions dans une interface pensée autour des cartes de contact.
 
-## Fichiers
+## Démarrer
 
-- `CAHIER_DES_CHARGES_V1.md`  
-  Source de vérité fonctionnelle + UX + design.
+1. Installer les dépendances : `npm ci`
+2. Copier `.env.example` vers `.env.local` et renseigner l’URL Supabase ainsi que la clé publishable.
+3. Lancer l’application : `npm run dev`
 
-- `NOTES_REFERENCE_VISUELLE_V0.md`  
-  Indique précisément comment interpréter la maquette et quels éléments ne pas reproduire.
+La source de données par défaut est Supabase. Une erreur de configuration ou de connexion est affichée ; l’application ne bascule pas silencieusement vers les données de démonstration.
 
-- `REFERENCE_VISUELLE_DASHBOARD_V0.png`  
-  Maquette d’ambiance validée.
+Pour travailler sur les données de démonstration, les tests utilisent `SeedRepository`. Le schéma local et ses migrations sont dans `supabase/`.
 
-- `PROMPT_TRAE_DEMARRAGE.md`  
-  Prompt prêt à copier dans Trae pour démarrer le prototype front-end.
+## Fonctionnalités
 
-## Ordre conseillé
+- Connexion Supabase et données isolées par utilisateur via RLS.
+- Création, modification et archivage des contacts.
+- Demandes avec statut, prochaine action, échanges et archivage distinct de la clôture.
+- Relances en retard, actions du jour et actions à venir sur le dashboard.
+- Missions liées aux demandes, avec suivi de statut, progression et notes.
+- Fiche contact qui regroupe l’historique et permet d’agir sur les demandes et missions.
+- Vues adaptées au clavier, aux préférences de mouvement réduit et aux petits écrans.
 
-1. Importer/placer ces quatre fichiers dans le projet.
-2. Donner le contenu de `PROMPT_TRAE_DEMARRAGE.md` à Trae.
-3. Faire construire uniquement la phase UI avec données mock.
-4. Valider visuellement et fonctionnellement.
-5. Ensuite seulement : choisir/valider le backend, l’authentification et la persistance.
+## Vérifications
 
-## Règle principale
+```sh
+npm run typecheck
+npm run lint
+npm run test -- --run
+npm run build
+```
 
-Ne pas ajouter de fonctions non validées simplement parce qu’elles semblent utiles.
-
-La V1 doit d’abord réussir le suivi des contacts, prochaines actions, relances et missions.
+Les tests PostgreSQL locaux peuvent être exécutés avec `npx supabase test db` lorsque le stack Supabase local est démarré.

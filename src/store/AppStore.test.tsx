@@ -6,10 +6,12 @@ import type { Contact, Exchange, Mission, NextAction, Request } from '../types';
 import type {
   CreateContactInput,
   CreateExchangeInput,
+  CreateMissionInput,
   CreateRequestActionInput,
   CreateRequestInput,
   IRepository,
   UpdateContactInput,
+  UpdateMissionInput,
   UpdateRequestInput,
 } from '../data/repositories/interface';
 import { AppStoreProvider, useAppStore, type AppStoreData } from './AppStore';
@@ -28,6 +30,8 @@ type RepositorySpy = IRepository & {
   createRequestActionSpy: Mock<(input: CreateRequestActionInput) => Promise<NextAction>>;
   createExchangeSpy: Mock<(input: CreateExchangeInput) => Promise<Exchange>>;
   archiveRequestSpy: Mock<(requestId: string) => Promise<void>>;
+  createMissionSpy: Mock<(input: CreateMissionInput) => Promise<Mission>>;
+  updateMissionSpy: Mock<(missionId: string, input: UpdateMissionInput) => Promise<Mission>>;
 };
 
 /**
@@ -95,6 +99,14 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
         (() => Promise.reject(new Error('not implemented')))
     );
 
+  const createMissionSpy = vi
+    .fn<(input: CreateMissionInput) => Promise<Mission>>()
+    .mockImplementation(overrides?.createMission ?? (() => Promise.reject(new Error('not implemented'))));
+
+  const updateMissionSpy = vi
+    .fn<(missionId: string, input: UpdateMissionInput) => Promise<Mission>>()
+    .mockImplementation(overrides?.updateMission ?? (() => Promise.reject(new Error('not implemented'))));
+
   const createRequestActionSpy = vi
     .fn<(input: CreateRequestActionInput) => Promise<NextAction>>()
     .mockImplementation(
@@ -120,10 +132,8 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     createRequestAction: createRequestActionSpy,
     updateRequestAction: () =>
       Promise.reject(new Error('not implemented')),
-    createMission: () =>
-      Promise.reject(new Error('not implemented')),
-    updateMission: () =>
-      Promise.reject(new Error('not implemented')),
+    createMission: createMissionSpy,
+    updateMission: updateMissionSpy,
     createExchange: createExchangeSpy,
     createRequest: createRequestSpy,
     updateRequest: updateRequestSpy,
@@ -140,6 +150,8 @@ function buildRepository(overrides?: Partial<IRepository>): RepositorySpy {
     createRequestActionSpy,
     createExchangeSpy,
     archiveRequestSpy,
+    createMissionSpy,
+    updateMissionSpy,
   };
 }
 
@@ -1005,6 +1017,152 @@ describe('AppStore → Repository', () => {
       expect(after).toHaveLength(1);
       expect(after[0]?.id).toBe(SAMPLE_REQUEST_1.id);
       expect(after[0]?.title).toBe('Titre modifié !!!');
+    });
+
+    it('la clôture d’une demande met à jour son statut et libère le contact', async () => {
+      const activeContact = { ...SAMPLE_CONTACT_JEAN, activeRequestId: SAMPLE_REQUEST_1.id };
+      const closedRequest = { ...SAMPLE_REQUEST_1, status: 'terminee' as const };
+      const { Capture, getLatest } = snap('capture-request-lifecycle', (d) => ({
+        contacts: d.contacts,
+        requests: d.requests,
+        updateRequest: d.updateRequest,
+      }));
+
+      render(<AppStoreProvider repository={buildRepository({
+        loadContacts: () => Promise.resolve([activeContact]),
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        updateRequest: () => Promise.resolve(closedRequest),
+      })}><Capture /></AppStoreProvider>);
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().updateRequest(SAMPLE_REQUEST_1.id, { status: 'terminee' });
+      });
+
+      expect(getLatest().requests[0]?.status).toBe('terminee');
+      expect(getLatest().contacts[0]?.activeRequestId).toBeUndefined();
+    });
+
+    it('createMission synchronise demande et relation contact après succès', async () => {
+      const activeContact = { ...SAMPLE_CONTACT_JEAN, activeRequestId: SAMPLE_REQUEST_1.id };
+      const createdMission: Mission = {
+        id: 'm-new', requestId: SAMPLE_REQUEST_1.id, contactId: SAMPLE_CONTACT_JEAN.id,
+        title: 'Site', status: 'a_demarrer', progress: 0,
+      };
+      const { Capture, getLatest } = snap('capture-mission-lifecycle', (d) => ({
+        contacts: d.contacts, requests: d.requests, missions: d.missions, createMission: d.createMission,
+      }));
+
+      render(<AppStoreProvider repository={buildRepository({
+        loadContacts: () => Promise.resolve([activeContact]),
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        createMission: () => Promise.resolve(createdMission),
+      })}><Capture /></AppStoreProvider>);
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().createMission({ requestId: SAMPLE_REQUEST_1.id, contactId: activeContact.id, title: 'Site' });
+      });
+
+      expect(getLatest().missions).toEqual([createdMission]);
+      expect(getLatest().requests[0]?.status).toBe('mission_confirmee');
+      expect(getLatest().contacts[0]?.relationship).toBe('client');
+      expect(getLatest().contacts[0]?.totalMissions).toBe(1);
+      expect(getLatest().contacts[0]?.activeRequestId).toBe(SAMPLE_REQUEST_1.id);
+    });
+
+    it('confirme la demande quand la mission est créée directement terminée', async () => {
+      const activeContact = { ...SAMPLE_CONTACT_JEAN, activeRequestId: SAMPLE_REQUEST_1.id };
+      const completedMission: Mission = {
+        id: 'm-new-completed', requestId: SAMPLE_REQUEST_1.id, contactId: activeContact.id,
+        title: 'Site', status: 'terminee', progress: 100,
+      };
+      const { Capture, getLatest } = snap('capture-create-completed-mission', (d) => ({
+        contacts: d.contacts, requests: d.requests, createMission: d.createMission,
+      }));
+
+      render(<AppStoreProvider repository={buildRepository({
+        loadContacts: () => Promise.resolve([activeContact]),
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        createMission: () => Promise.resolve(completedMission),
+      })}><Capture /></AppStoreProvider>);
+      await waitFor(() => {
+        expect(getLatest().requests).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().createMission({
+          requestId: SAMPLE_REQUEST_1.id, contactId: activeContact.id, title: 'Site', status: 'terminee', progress: 100,
+        });
+      });
+
+      expect(getLatest().requests[0]?.status).toBe('mission_confirmee');
+      expect(getLatest().contacts[0]?.activeRequestId).toBe(SAMPLE_REQUEST_1.id);
+    });
+
+    it('classe un prospect comme récurrent si une mission existe déjà', async () => {
+      const contact = { ...SAMPLE_CONTACT_JEAN, totalMissions: 1, activeRequestId: SAMPLE_REQUEST_1.id };
+      const historicalMission: Mission = {
+        id: 'm-history', requestId: 'r-history', contactId: contact.id,
+        title: 'Historique', status: 'terminee', progress: 100,
+      };
+      const createdMission: Mission = {
+        id: 'm-new-history', requestId: SAMPLE_REQUEST_1.id, contactId: contact.id,
+        title: 'Nouveau', status: 'a_demarrer', progress: 0,
+      };
+      const { Capture, getLatest } = snap('capture-recurrent-prospect', (d) => ({
+        contacts: d.contacts, createMission: d.createMission,
+      }));
+
+      render(<AppStoreProvider repository={buildRepository({
+        loadContacts: () => Promise.resolve([contact]),
+        loadRequests: () => Promise.resolve([SAMPLE_REQUEST_1]),
+        loadMissions: () => Promise.resolve([historicalMission]),
+        createMission: () => Promise.resolve(createdMission),
+      })}><Capture /></AppStoreProvider>);
+      await waitFor(() => {
+        expect(getLatest().contacts).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().createMission({ requestId: SAMPLE_REQUEST_1.id, contactId: contact.id, title: 'Nouveau' });
+      });
+
+      expect(getLatest().contacts[0]?.relationship).toBe('client_recurrent');
+    });
+
+    it('termine le statut de la demande après la dernière mission terminée', async () => {
+      const activeContact = { ...SAMPLE_CONTACT_JEAN, activeRequestId: SAMPLE_REQUEST_1.id };
+      const mission: Mission = {
+        id: 'm-only', requestId: SAMPLE_REQUEST_1.id, contactId: SAMPLE_CONTACT_JEAN.id,
+        title: 'Site', status: 'en_cours', progress: 50,
+      };
+      const completedMission = { ...mission, status: 'terminee' as const, progress: 100 };
+      const { Capture, getLatest } = snap('capture-complete-mission', (d) => ({
+        contacts: d.contacts, requests: d.requests, missions: d.missions, updateMission: d.updateMission,
+      }));
+
+      render(<AppStoreProvider repository={buildRepository({
+        loadContacts: () => Promise.resolve([activeContact]),
+        loadRequests: () => Promise.resolve([{ ...SAMPLE_REQUEST_1, status: 'mission_confirmee' }]),
+        loadMissions: () => Promise.resolve([mission]),
+        updateMission: () => Promise.resolve(completedMission),
+      })}><Capture /></AppStoreProvider>);
+      await waitFor(() => {
+        expect(getLatest().missions).toHaveLength(1);
+      });
+
+      await act(async () => {
+        await getLatest().updateMission(mission.id, { status: 'terminee', progress: 100 });
+      });
+
+      expect(getLatest().missions[0]?.status).toBe('terminee');
+      expect(getLatest().requests[0]?.status).toBe('terminee');
+      expect(getLatest().contacts[0]?.activeRequestId).toBeUndefined();
     });
 
     it('37. updateRequest absent → aucune insertion', async () => {

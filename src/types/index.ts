@@ -11,7 +11,8 @@ export type RequestStatus =
   | 'solution_proposee'
   | 'en_attente'
   | 'mission_confirmee'
-  | 'sans_suite';
+  | 'sans_suite'
+  | 'terminee';
 
 export type MissionStatus =
   | 'a_demarrer'

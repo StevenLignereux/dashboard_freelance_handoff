@@ -145,7 +145,7 @@ export class SeedRepository implements IRepository {
       throw new Error(`Cannot create request: contact id=${contactId} is archived.`);
     }
     const activeReq = this.requests.find(
-      (r) => r.contactId === contactId && !r.archived && r.status !== 'sans_suite'
+      (r) => r.contactId === contactId && !r.archived && r.status !== 'sans_suite' && r.status !== 'terminee'
     );
     if (activeReq) {
       throw new Error(`Cannot create request: contact id=${contactId} already has an active request id=${activeReq.id}. Archive it first.`);
@@ -182,12 +182,55 @@ export class SeedRepository implements IRepository {
       throw new Error(`Cannot update request: id=${requestId} not found.`);
     }
     const previous = this.requests[idx];
+    const previousAction = previous.nextAction;
+    let updatedAction = previousAction;
+    if (input.nextActionUpdate) {
+      if (previousAction?.id !== input.nextActionUpdate.id) {
+        throw new Error(`Cannot update request action: action id=${input.nextActionUpdate.id} not found.`);
+      }
+      if (previous.archived) {
+        throw new Error(`Cannot update request action: request id=${requestId} is archived.`);
+      }
+      updatedAction = {
+        ...previousAction,
+        type: input.nextActionUpdate.input.type ?? previousAction.type,
+        label: input.nextActionUpdate.input.label ?? previousAction.label,
+        dueDate: input.nextActionUpdate.input.dueDate ?? previousAction.dueDate,
+      };
+    }
+    const status = input.status ?? previous.status;
+    const isTerminal = status === 'terminee' || status === 'sans_suite';
+    const contactIdx = this.contacts.findIndex((contact) => contact.id === previous.contactId);
+    if (!isTerminal && !previous.archived) {
+      const otherActiveRequest = this.requests.find((request) =>
+        request.id !== requestId &&
+        request.contactId === previous.contactId &&
+        !request.archived &&
+        request.status !== 'terminee' &&
+        request.status !== 'sans_suite'
+      );
+      if (otherActiveRequest) {
+        throw new Error(`Cannot reopen request: contact id=${previous.contactId} already has an active request id=${otherActiveRequest.id}.`);
+      }
+    }
+
     const updated: Request = {
       ...previous,
       title: input.title ?? previous.title,
       description: input.description === undefined ? previous.description : (input.description ?? undefined),
+      status,
+      nextAction: updatedAction,
     };
     this.requests[idx] = updated;
+
+    if (contactIdx >= 0) {
+      const contact = this.contacts[contactIdx];
+      if (contact.activeRequestId === requestId && (isTerminal || previous.archived)) {
+        this.contacts[contactIdx] = { ...contact, activeRequestId: undefined };
+      } else if (!isTerminal && !previous.archived) {
+        this.contacts[contactIdx] = { ...contact, activeRequestId: requestId };
+      }
+    }
     return updated;
   }
 
@@ -294,7 +337,22 @@ export class SeedRepository implements IRepository {
   }
 
   async createMission(input: CreateMissionInput): Promise<Mission> {
-    const id = `m-new-${Date.now()}`;
+    const requestIdx = this.requests.findIndex((request) => request.id === input.requestId);
+    if (requestIdx === -1) throw new Error(`Cannot create mission: request id=${input.requestId} not found.`);
+    const request = this.requests[requestIdx];
+    if (request.contactId !== input.contactId) {
+      throw new Error(`Cannot create mission: request id=${input.requestId} does not belong to contact id=${input.contactId}.`);
+    }
+    if (request.archived || request.status === 'terminee' || request.status === 'sans_suite') {
+      throw new Error(`Cannot create mission: request id=${input.requestId} is closed or archived.`);
+    }
+
+    const contactIdx = this.contacts.findIndex((contact) => contact.id === input.contactId);
+    if (contactIdx === -1) throw new Error(`Cannot create mission: contact id=${input.contactId} not found.`);
+
+    const contact = this.contacts[contactIdx];
+    const previousMissionCount = this.missions.filter((mission) => mission.contactId === contact.id).length;
+    const id = `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
     const created: Mission = {
       id,
@@ -307,6 +365,24 @@ export class SeedRepository implements IRepository {
       startDate: now,
     };
     this.missions.push(created);
+
+    this.requests[requestIdx] = {
+      ...request,
+      status: 'mission_confirmee',
+    };
+
+    const relationship = contact.relationship === 'prospect'
+      ? (previousMissionCount === 0 ? 'client' : 'client_recurrent')
+      : contact.relationship === 'ancien_client' || (contact.relationship === 'client' && previousMissionCount > 0)
+        ? 'client_recurrent'
+        : contact.relationship;
+    this.contacts[contactIdx] = {
+      ...contact,
+      relationship,
+      totalMissions: contact.totalMissions + 1,
+      activeRequestId: request.id,
+    };
+
     return Promise.resolve(created);
   }
 
@@ -322,6 +398,21 @@ export class SeedRepository implements IRepository {
       ...(input.notes !== undefined ? { notes: input.notes ?? undefined } : {}),
     };
     this.missions[idx] = updated;
+
+    if (existing.status !== 'terminee' && updated.status === 'terminee') {
+      const requestMissions = this.missions.filter((mission) => mission.requestId === updated.requestId);
+      if (requestMissions.length > 0 && requestMissions.every((mission) => mission.status === 'terminee')) {
+        const requestIdx = this.requests.findIndex((request) => request.id === updated.requestId);
+        if (requestIdx !== -1) {
+          const request = this.requests[requestIdx];
+          this.requests[requestIdx] = { ...request, status: 'terminee' };
+          const contactIdx = this.contacts.findIndex((contact) => contact.id === request.contactId);
+          if (contactIdx !== -1 && this.contacts[contactIdx].activeRequestId === request.id) {
+            this.contacts[contactIdx] = { ...this.contacts[contactIdx], activeRequestId: undefined };
+          }
+        }
+      }
+    }
     return Promise.resolve(updated);
   }
 

@@ -459,6 +459,69 @@ describe('SeedRepository', () => {
       if (before.nextAction) expect(updated.nextAction?.id).toBe(before.nextAction.id);
     });
 
+    it('met à jour la demande et sa prochaine action ensemble', async () => {
+      const repo = new SeedRepository();
+      const request = (await repo.loadRequests()).find((item) => item.nextAction);
+      if (!request?.nextAction) throw new Error('Expected a seeded open action.');
+
+      const updated = await repo.updateRequest(request.id, {
+        title: 'Titre enregistré avec action',
+        nextActionUpdate: {
+          id: request.nextAction.id,
+          input: { label: 'Nouvelle action enregistrée' },
+        },
+      });
+
+      expect(updated.title).toBe('Titre enregistré avec action');
+      expect(updated.nextAction?.label).toBe('Nouvelle action enregistrée');
+    });
+
+    it('ne modifie pas la demande si la mise à jour groupée de sa prochaine action échoue', async () => {
+      const repo = new SeedRepository();
+      const request = (await repo.loadRequests()).find((item) => item.nextAction);
+      if (!request?.nextAction) throw new Error('Expected a seeded open action.');
+
+      await expect(repo.updateRequest(request.id, {
+        title: 'Ne doit pas être enregistré',
+        nextActionUpdate: {
+          id: 'missing-action',
+          input: { label: 'Action invalide' },
+        },
+      })).rejects.toThrow(/action.*not found/i);
+
+      const unchanged = (await repo.loadRequests()).find((item) => item.id === request.id);
+      expect(unchanged?.title).toBe(request.title);
+      expect(unchanged?.nextAction?.label).toBe(request.nextAction.label);
+    });
+
+    it('terminee clôt la demande sans l’archiver et libère le contact', async () => {
+      const contact = await repository.createContact({
+        firstName: 'Test', lastName: 'Lifecycle', relationship: 'prospect',
+      });
+      const request = await repository.createRequest({ contactId: contact.id, title: 'Projet' });
+
+      const updated = await repository.updateRequest(request.id, { status: 'terminee' });
+      const refreshedContact = (await repository.loadContacts()).find((item) => item.id === contact.id);
+
+      expect(updated.status).toBe('terminee');
+      expect(updated.archived).toBe(false);
+      expect(refreshedContact?.activeRequestId).toBeUndefined();
+    });
+
+    it('réouverture refusée si une autre demande est déjà active', async () => {
+      const contact = await repository.createContact({
+        firstName: 'Test', lastName: 'Lifecycle', relationship: 'prospect',
+      });
+      const first = await repository.createRequest({ contactId: contact.id, title: 'Première' });
+      await repository.updateRequest(first.id, { status: 'terminee' });
+      const second = await repository.createRequest({ contactId: contact.id, title: 'Seconde' });
+
+      await expect(repository.updateRequest(first.id, { status: 'nouveau' }))
+        .rejects.toThrow(/already has an active request/i);
+      expect((await repository.loadRequests()).find((item) => item.id === first.id)?.status).toBe('terminee');
+      expect((await repository.loadContacts()).find((item) => item.id === contact.id)?.activeRequestId).toBe(second.id);
+    });
+
     it('10. updateRequest inconnu → erreur', async () => {
       const repo = new SeedRepository();
       await expect(repo.updateRequest('r-nope-xyz', { title: 'X' })).rejects.toThrow(/id=r-nope-xyz not found/);
@@ -504,6 +567,93 @@ describe('SeedRepository', () => {
     it('14. archive inconnue → erreur', async () => {
       const repo = new SeedRepository();
       await expect(repo.archiveRequest('r-unknown-xyz')).rejects.toThrow(/id=r-unknown-xyz not found/);
+    });
+  });
+
+  describe('mission lifecycle', () => {
+    it('confirme la demande même si la mission est créée déjà terminée', async () => {
+      const contact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const request = await repository.createRequest({ contactId: contact.id, title: 'Site' });
+
+      await repository.createMission({ requestId: request.id, contactId: contact.id, title: 'Site', status: 'terminee' });
+
+      expect((await repository.loadRequests()).find((item) => item.id === request.id)?.status).toBe('mission_confirmee');
+    });
+
+    it('la première mission confirme la demande et convertit le prospect en client', async () => {
+      const contact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const request = await repository.createRequest({ contactId: contact.id, title: 'Site' });
+
+      await repository.createMission({ requestId: request.id, contactId: contact.id, title: 'Site' });
+
+      expect((await repository.loadRequests()).find((item) => item.id === request.id)?.status).toBe('mission_confirmee');
+      expect((await repository.loadContacts()).find((item) => item.id === contact.id)?.relationship).toBe('client');
+    });
+
+    it('une mission ultérieure requalifie un ancien client en client récurrent', async () => {
+      const contact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const firstRequest = await repository.createRequest({ contactId: contact.id, title: 'Premier site' });
+      const firstMission = await repository.createMission({ requestId: firstRequest.id, contactId: contact.id, title: 'Premier site' });
+      const completedFirstMission = await repository.updateMission(firstMission.id, { status: 'terminee' });
+      await repository.updateContact(contact.id, { relationship: 'ancien_client' });
+      const secondRequest = await repository.createRequest({ contactId: contact.id, title: 'Second site' });
+
+      await repository.createMission({ requestId: secondRequest.id, contactId: contact.id, title: 'Second site' });
+
+      expect(completedFirstMission.status).toBe('terminee');
+      expect((await repository.loadContacts()).find((item) => item.id === contact.id)?.relationship).toBe('client_recurrent');
+      expect((await repository.loadRequests()).find((item) => item.id === secondRequest.id)?.status).toBe('mission_confirmee');
+    });
+
+    it('classe en récurrent un prospect qui a déjà une mission historique', async () => {
+      const contact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const firstRequest = await repository.createRequest({ contactId: contact.id, title: 'Historique' });
+      const historicalMission = await repository.createMission({ requestId: firstRequest.id, contactId: contact.id, title: 'Historique' });
+      await repository.updateMission(historicalMission.id, { status: 'terminee' });
+      await repository.updateContact(contact.id, { relationship: 'prospect' });
+      const nextRequest = await repository.createRequest({ contactId: contact.id, title: 'Nouvelle prestation' });
+
+      await repository.createMission({ requestId: nextRequest.id, contactId: contact.id, title: 'Nouvelle prestation' });
+
+      expect((await repository.loadContacts()).find((item) => item.id === contact.id)?.relationship).toBe('client_recurrent');
+    });
+
+    it('refuse les demandes terminées et archivées avant de créer une mission', async () => {
+      const contact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const terminal = await repository.createRequest({ contactId: contact.id, title: 'Terminé' });
+      await repository.updateRequest(terminal.id, { status: 'sans_suite' });
+      const archived = await repository.createRequest({ contactId: contact.id, title: 'Archivé' });
+      await repository.archiveRequest(archived.id);
+      const missionCountBefore = (await repository.loadMissions()).length;
+
+      await expect(repository.createMission({ requestId: terminal.id, contactId: contact.id, title: 'Refusée' }))
+        .rejects.toThrow(/closed or archived/i);
+      await expect(repository.createMission({ requestId: archived.id, contactId: contact.id, title: 'Refusée' }))
+        .rejects.toThrow(/closed or archived/i);
+      expect(await repository.loadMissions()).toHaveLength(missionCountBefore);
+    });
+
+    it('termine la demande seulement après la dernière mission', async () => {
+      const contact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const request = await repository.createRequest({ contactId: contact.id, title: 'Projet' });
+      const first = await repository.createMission({ requestId: request.id, contactId: contact.id, title: 'Lot 1' });
+      const second = await repository.createMission({ requestId: request.id, contactId: contact.id, title: 'Lot 2' });
+
+      await repository.updateMission(first.id, { status: 'terminee' });
+      expect((await repository.loadRequests()).find((item) => item.id === request.id)?.status).toBe('mission_confirmee');
+
+      await repository.updateMission(second.id, { status: 'terminee' });
+      expect((await repository.loadRequests()).find((item) => item.id === request.id)?.status).toBe('terminee');
+      expect((await repository.loadContacts()).find((item) => item.id === contact.id)?.activeRequestId).toBeUndefined();
+    });
+
+    it('refuse une mission dont le contact ne correspond pas à la demande', async () => {
+      const firstContact = await repository.createContact({ firstName: 'Jean', lastName: 'Test', relationship: 'prospect' });
+      const secondContact = await repository.createContact({ firstName: 'Camille', lastName: 'Test', relationship: 'prospect' });
+      const request = await repository.createRequest({ contactId: firstContact.id, title: 'Projet' });
+
+      await expect(repository.createMission({ requestId: request.id, contactId: secondContact.id, title: 'Incorrecte' }))
+        .rejects.toThrow(/does not belong to contact/i);
     });
   });
 

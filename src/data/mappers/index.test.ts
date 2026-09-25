@@ -19,6 +19,24 @@ import type {
 } from '../dbTypes';
 
 describe('Mappers DB → domaine', () => {
+  it('mapRequest conserve le nouveau statut de demande terminée', () => {
+    const dbRequest: DbRequest = {
+      id: 'r-done',
+      contact_id: 'c-1',
+      title: 'Demande terminée',
+      description: null,
+      status: 'terminee',
+      created_at: '2024-01-01T00:00:00Z',
+      last_activity_at: '2024-01-02T00:00:00Z',
+      is_active: false,
+      archived: false,
+      user_id: 'user-1',
+      updated_at: '2024-01-02T00:00:00Z',
+    };
+
+    expect(mapRequest(dbRequest, null).status).toBe('terminee');
+  });
+
   describe('mapContact', () => {
     it('convertit snake_case en camelCase', () => {
       const dbContact: DbContact = {

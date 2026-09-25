@@ -269,7 +269,50 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_request_with_action: {
+        Args: {
+          p_request_id: string
+          p_action_id: string
+          p_title: string
+          p_update_title: boolean
+          p_description: string | null
+          p_update_description: boolean
+          p_status: Database["public"]["Enums"]["request_status"]
+          p_update_status: boolean
+          p_action_type: Database["public"]["Enums"]["request_action_type"]
+          p_update_action_type: boolean
+          p_action_label: string
+          p_update_action_label: boolean
+          p_action_due_at: string | null
+          p_update_action_due_at: boolean
+        }
+        Returns: Json
+      }
+      create_mission_with_lifecycle: {
+        Args: {
+          p_request_id: string
+          p_contact_id: string
+          p_title: string
+          p_status: Database["public"]["Enums"]["mission_status"]
+          p_progress: number
+          p_notes: string | null
+        }
+        Returns: Database["public"]["Tables"]["missions"]["Row"]
+      }
+      update_mission_with_lifecycle: {
+        Args: {
+          p_mission_id: string
+          p_title: string
+          p_update_title: boolean
+          p_status: Database["public"]["Enums"]["mission_status"]
+          p_update_status: boolean
+          p_progress: number
+          p_update_progress: boolean
+          p_notes: string | null
+          p_update_notes: boolean
+        }
+        Returns: Database["public"]["Tables"]["missions"]["Row"]
+      }
     }
     Enums: {
       exchange_type: "appel" | "email" | "message" | "rencontre" | "note"
@@ -296,6 +339,7 @@ export type Database = {
         | "en_attente"
         | "mission_confirmee"
         | "sans_suite"
+        | "terminee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -452,6 +496,7 @@ export const Constants = {
         "en_attente",
         "mission_confirmee",
         "sans_suite",
+        "terminee",
       ],
     },
   },

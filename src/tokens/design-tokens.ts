@@ -96,6 +96,15 @@ export const statusMeta: Record<
     ringColor: 'ring-slate-500/30',
     iconHint: '—',
   },
+  terminee: {
+    label: 'Terminée',
+    color: '#64748B',
+    textColor: 'text-brand-slate',
+    chipBg: 'bg-slate-500/10 text-slate-400 ring-1 ring-slate-500/25',
+    borderColor: 'border-slate-500/40',
+    ringColor: 'ring-slate-500/30',
+    iconHint: '✓',
+  },
 };
 
 export const relationshipMeta: Record<

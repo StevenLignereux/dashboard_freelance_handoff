@@ -12,7 +12,7 @@ import { ContactCardModal } from './components/contact/ContactCardModal';
 import { ArchiveConfirmation } from './components/contact/ArchiveConfirmation';
 import { RequestArchiveConfirmation } from './components/request/RequestArchiveConfirmation';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
-import type { IRepository, CreateContactInput, CreateRequestActionInput, CreateRequestInput, UpdateRequestInput } from './data/repositories/interface';
+import type { IRepository, CreateContactInput, CreateRequestActionInput, CreateRequestInput, UpdateMissionInput, UpdateRequestInput } from './data/repositories/interface';
 import {
   seedContacts,
   seedRequests,
@@ -1031,5 +1031,57 @@ describe('App / Router — flux modales request', () => {
     await waitFor(() => {
       expect(onSuccessSpy).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('enregistre l’édition d’une mission depuis la fiche contact sans superposer les dialogues puis rouvre la fiche mise à jour', async () => {
+    const user = makeUser('u-router-mission-edit', 'mission-edit@test.local');
+    const session = makeSession(user);
+    const authClient: AuthClientLike = {
+      getSession: () => Promise.resolve({ data: { session }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+      signInWithPassword: () => Promise.resolve({ data: { user, session }, error: null }),
+      signOut: () => Promise.resolve({ error: null }),
+    };
+
+    const updateMission = vi.fn<(missionId: string, input: UpdateMissionInput) => Promise<Mission>>();
+    updateMission.mockImplementation((missionId, input) => {
+      const mission = seedMissions.find((item) => item.id === missionId);
+      if (!mission) throw new Error('Mission not found');
+      return Promise.resolve({
+        ...mission,
+        ...input,
+        notes: input.notes === undefined ? mission.notes : input.notes ?? undefined,
+      });
+    });
+    render(withAuth(<AppStoreProvider repository={buildMiniRepo({ updateMission })}><Router /></AppStoreProvider>, authClient));
+
+    await waitFor(() => expect(screen.queryByText(/chargement de votre session/i)).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Contacts/i }));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /Contacts/i })).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getAllByText(/Jean Dupont/i).length).toBeGreaterThan(0); });
+
+    const contactRow = screen.getAllByText(/Jean Dupont/i)[0]?.closest('button, a, [role="button"]');
+    if (!contactRow) throw new Error('Contact card was not found.');
+    fireEvent.click(contactRow);
+
+    const contactDialog = await screen.findByRole('dialog', { name: /Jean Dupont/i });
+    fireEvent.click(within(contactDialog).getByRole('button', { name: 'Modifier la mission Dépannage informatique' }));
+
+    const editDialog = await screen.findByRole('dialog', { name: 'Modifier une mission' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Jean Dupont/i })).not.toBeInTheDocument());
+    expect(screen.getAllByRole('dialog').filter((dialog) => dialog.getAttribute('aria-modal') === 'true')).toHaveLength(1);
+
+    fireEvent.change(within(editDialog).getByRole('textbox', { name: /Titre/i }), {
+      target: { value: 'Intervention dépannage terminée' },
+    });
+    fireEvent.click(within(editDialog).getByRole('button', { name: 'Enregistrer' }));
+    const reopenedContactDialog = await screen.findByRole('dialog', { name: /Jean Dupont/i });
+    expect(updateMission).toHaveBeenCalledWith('m-jean-ancienne', expect.objectContaining({
+      title: 'Intervention dépannage terminée',
+    }));
+    expect(within(reopenedContactDialog).getByRole('button', {
+      name: 'Modifier la mission Intervention dépannage terminée',
+    })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Modifier une mission' })).not.toBeInTheDocument();
   });
 });
