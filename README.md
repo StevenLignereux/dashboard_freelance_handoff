@@ -32,3 +32,9 @@ npm run build
 ```
 
 Les tests PostgreSQL locaux peuvent être exécutés avec `npx supabase test db` lorsque le stack Supabase local est démarré.
+
+## Publication GitHub Pages
+
+Le workflow GitHub Actions vérifie les changements sur les pull requests, puis publie `main` sur `https://stevenlignereux.github.io/dashboard_freelance_handoff/`.
+
+Dans les variables Actions du dépôt, définir `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY`. La clé publishable est intégrée au frontend et visible dans le navigateur ; ne jamais utiliser une clé `service_role` ou `sb_secret`. Dans Settings → Pages, choisir **GitHub Actions** comme source. Les données restent protégées par l’authentification et les politiques RLS de Supabase.
