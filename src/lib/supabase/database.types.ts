@@ -269,6 +269,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      update_request_with_action: {
+        Args: {
+          p_request_id: string
+          p_action_id: string
+          p_title: string
+          p_update_title: boolean
+          p_description: string | null
+          p_update_description: boolean
+          p_status: Database["public"]["Enums"]["request_status"]
+          p_update_status: boolean
+          p_action_type: Database["public"]["Enums"]["request_action_type"]
+          p_update_action_type: boolean
+          p_action_label: string
+          p_update_action_label: boolean
+          p_action_due_at: string | null
+          p_update_action_due_at: boolean
+        }
+        Returns: Json
+      }
       create_mission_with_lifecycle: {
         Args: {
           p_request_id: string

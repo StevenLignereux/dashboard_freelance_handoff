@@ -182,6 +182,22 @@ export class SeedRepository implements IRepository {
       throw new Error(`Cannot update request: id=${requestId} not found.`);
     }
     const previous = this.requests[idx];
+    const previousAction = previous.nextAction;
+    let updatedAction = previousAction;
+    if (input.nextActionUpdate) {
+      if (previousAction?.id !== input.nextActionUpdate.id) {
+        throw new Error(`Cannot update request action: action id=${input.nextActionUpdate.id} not found.`);
+      }
+      if (previous.archived) {
+        throw new Error(`Cannot update request action: request id=${requestId} is archived.`);
+      }
+      updatedAction = {
+        ...previousAction,
+        type: input.nextActionUpdate.input.type ?? previousAction.type,
+        label: input.nextActionUpdate.input.label ?? previousAction.label,
+        dueDate: input.nextActionUpdate.input.dueDate ?? previousAction.dueDate,
+      };
+    }
     const status = input.status ?? previous.status;
     const isTerminal = status === 'terminee' || status === 'sans_suite';
     const contactIdx = this.contacts.findIndex((contact) => contact.id === previous.contactId);
@@ -203,6 +219,7 @@ export class SeedRepository implements IRepository {
       title: input.title ?? previous.title,
       description: input.description === undefined ? previous.description : (input.description ?? undefined),
       status,
+      nextAction: updatedAction,
     };
     this.requests[idx] = updated;
 

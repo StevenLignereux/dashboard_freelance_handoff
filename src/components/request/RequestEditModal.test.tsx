@@ -169,6 +169,33 @@ describe('RequestEditModal', () => {
     });
   });
 
+  it('enregistre les modifications de demande et de prochaine action dans un seul appel', async () => {
+    const updateRequestAction = vi.fn().mockResolvedValue({
+      id: 'na-suivi-jean', type: 'relance', label: 'Nouvelle relance', dueDate: '2026-09-27T08:00:00.000Z',
+    });
+    const repo = buildRepository({ updateRequestAction });
+    render(withWrapper(<>
+      <DataReady />
+      <RequestEditModal requestId="r-jean-site" onClose={vi.fn()} />
+    </>, repo));
+
+    await waitForDataLoaded();
+    fireEvent.change(screen.getByRole('textbox', { name: /Libellé/i }), {
+      target: { value: 'Envoyer le devis demain' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+
+    await waitFor(() => {
+      expect(repo.updateRequestSpy).toHaveBeenCalledTimes(1);
+    });
+    const savedInput = repo.updateRequestSpy.mock.calls[0][1];
+    const savedActionUpdate = savedInput.nextActionUpdate;
+    if (!savedActionUpdate) throw new Error('Expected the next action update to be included.');
+    expect(savedActionUpdate.id).toBe('na-suivi-jean');
+    expect(savedActionUpdate.input.label).toBe('Envoyer le devis demain');
+    expect(updateRequestAction).not.toHaveBeenCalled();
+  });
+
   it('permet de modifier le statut de la demande et envoie le choix au repository', async () => {
     const onClose = vi.fn();
     const repo = buildRepository();

@@ -423,4 +423,22 @@ describe('ContactCardModal — cycle de vie de la demande', () => {
     expect(screen.queryByRole('button', { name: /Créer une mission/i })).not.toBeInTheDocument();
     expect(onCreateMission).not.toHaveBeenCalled();
   });
+
+  it('permet de lancer la modification d’une mission depuis la fiche contact', async () => {
+    const onEditMission = vi.fn();
+
+    render(withWrapper(<>
+      <DataReady />
+      <ContactCardModal
+        contactId="c-jean-dupont"
+        onClose={vi.fn()}
+        onEditMission={onEditMission}
+      />
+    </>));
+
+    await waitForDataLoaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier la mission Dépannage informatique' }));
+
+    expect(onEditMission).toHaveBeenCalledWith('m-jean-ancienne');
+  });
 });

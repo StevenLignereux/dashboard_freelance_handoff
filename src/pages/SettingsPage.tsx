@@ -14,7 +14,7 @@ export function SettingsPage() {
           Paramètres
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          Préférences applicatives et profil utilisateur (mock V1).
+          Préférences applicatives et informations du compte connecté.
         </p>
       </header>
 
@@ -49,7 +49,7 @@ export function SettingsPage() {
           <div>
             <div className="text-sm font-medium text-slate-900">Version actuelle</div>
             <div className="text-xs text-slate-400 mt-0.5">
-              UI V1.1 — Consolidation avant backend. Aucune persistance serveur.
+              V1 — Contacts, demandes, échanges et missions enregistrés dans Supabase.
             </div>
           </div>
         </div>

@@ -122,6 +122,7 @@ function Router() {
     | { type: 'action'; requestId: string }
     | { type: 'action-edit'; requestId: string }
     | { type: 'mission-create'; requestId: string }
+    | { type: 'mission-edit'; missionId: string }
     | { type: 'exchange-create'; requestId: string }
     | null;
   const [pendingRequestModal, setPendingRequestModal] = useState<PendingRequestModal>(null);
@@ -209,6 +210,9 @@ function Router() {
         break;
       case 'mission-create':
         setCreatingMissionRequestId(pending.requestId);
+        break;
+      case 'mission-edit':
+        setEditingMissionId(pending.missionId);
         break;
       case 'exchange-create':
         setCreatingExchangeRequestId(pending.requestId);
@@ -327,12 +331,27 @@ function Router() {
   }, [preRequestPayload]);
 
   const handleEditMission = useCallback((missionId: string) => {
+    const mission = store.data.missions.find((item) => item.id === missionId);
+    if (!mission) return;
+    if (activeContact) {
+      const payload = activeContact.contactId === mission.contactId
+        ? activeContact
+        : { contactId: mission.contactId };
+      setPreRequestPayload(payload);
+      setPendingRequestModal({ type: 'mission-edit', missionId });
+      setActiveContact(null);
+      return;
+    }
     setEditingMissionId(missionId);
-  }, []);
+  }, [store.data.missions, activeContact]);
 
   const handleCancelEditMission = useCallback(() => {
+    const toReopen = preRequestPayload;
     setEditingMissionId(null);
-  }, []);
+    setPendingRequestModal(null);
+    setPreRequestPayload(null);
+    if (toReopen) setActiveContact(toReopen);
+  }, [preRequestPayload]);
 
   const handleCreateExchange = useCallback((requestId: string) => {
     const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
@@ -403,6 +422,7 @@ function Router() {
             onCreateRequestAction={handleCreateRequestAction}
             onEditRequestAction={handleEditRequestAction}
             onCreateMission={handleCreateMission}
+            onEditMission={handleEditMission}
             onCreateExchange={handleCreateExchange}
           />
           <ContactCreateModal

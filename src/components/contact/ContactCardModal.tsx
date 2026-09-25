@@ -27,6 +27,7 @@ interface ContactCardModalProps {
   onEditRequest?: (requestId: string) => void;
   onArchiveRequest?: (requestId: string) => void;
   onCreateMission?: (requestId: string) => void;
+  onEditMission?: (missionId: string) => void;
   onCreateExchange?: (requestId: string) => void;
 }
 
@@ -57,7 +58,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onEditRequestAction, onCreateMission, onCreateExchange }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onEditRequestAction, onCreateMission, onEditMission, onCreateExchange }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -309,7 +310,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
                   )
                 )}
                 <StatsBlock contact={contact} />
-                <MissionsBlock missions={contactMissions} />
+                <MissionsBlock missions={contactMissions} onEditMission={onEditMission} />
                 <ExchangesBlock exchanges={contactExchanges.slice(0, 6)} />
                 {contact.notes && <NotesBlock notes={contact.notes} />}
               </div>
@@ -577,7 +578,7 @@ function StatsBlock({ contact }: { contact: Contact }) {
   );
 }
 
-function MissionsBlock({ missions }: { missions: Mission[] }) {
+function MissionsBlock({ missions, onEditMission }: { missions: Mission[]; onEditMission?: (missionId: string) => void }) {
   if (missions.length === 0) return null;
   return (
     <section>
@@ -607,6 +608,16 @@ function MissionsBlock({ missions }: { missions: Mission[] }) {
                   />
                 </div>
               </div>
+            )}
+            {onEditMission && (
+              <button
+                type="button"
+                aria-label={`Modifier la mission ${m.title}`}
+                onClick={() => { onEditMission(m.id); }}
+                className="mt-2 text-xs font-medium text-brand-violet hover:text-brand-violet/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-violet rounded"
+              >
+                Modifier
+              </button>
             )}
           </li>
         ))}

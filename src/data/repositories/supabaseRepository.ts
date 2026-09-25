@@ -403,6 +403,39 @@ export class SupabaseRepository implements IRepository {
     this.ensureSupabaseConfigured();
     const sb = this.getSupabase();
 
+    if (input.nextActionUpdate) {
+      const { id: actionId, input: actionInput } = input.nextActionUpdate;
+      const { data, error } = await sb.rpc('update_request_with_action', {
+        p_request_id: requestId,
+        p_action_id: actionId,
+        p_title: input.title ?? '',
+        p_update_title: input.title !== undefined,
+        p_description: input.description ?? null,
+        p_update_description: input.description !== undefined,
+        p_status: input.status ?? 'nouveau',
+        p_update_status: input.status !== undefined,
+        p_action_type: actionInput.type ? ACTION_TYPE_REVERSE_MAP[actionInput.type] : 'autre',
+        p_update_action_type: actionInput.type !== undefined,
+        p_action_label: actionInput.label ?? '',
+        p_update_action_label: actionInput.label !== undefined,
+        p_action_due_at: actionInput.dueDate ?? null,
+        p_update_action_due_at: actionInput.dueDate !== undefined,
+      });
+
+      if (error) {
+        if (isUniqueViolation(error) && input.status !== undefined) {
+          throw new Error('Cannot update request: contact already has an active request.');
+        }
+        throw new Error(`Failed to update request id=${requestId} and its action: ${error.message}`);
+      }
+      if (typeof data !== 'object' || data === null || !('request' in data) || !('action' in data)) {
+        throw new Error(`Failed to update request id=${requestId}: atomic update returned an invalid result.`);
+      }
+
+      const updated = data as unknown as { request: DbRequest; action: DbRequestAction };
+      return mapRequest(updated.request, updated.action);
+    }
+
     const patch: Record<string, unknown> = {};
     if (input.title !== undefined) patch.title = input.title;
     if (input.description !== undefined) patch.description = input.description ?? null;

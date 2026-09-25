@@ -176,15 +176,19 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
         title: title.trim(),
         description: description.trim().length > 0 ? description.trim() : null,
         status,
+        ...(request.nextAction && actionType && actionDueDate && actionLabel.trim()
+          ? {
+              nextActionUpdate: {
+                id: request.nextAction.id,
+                input: {
+                  type: actionType,
+                  label: actionLabel.trim(),
+                  dueDate: new Date(actionDueDate).toISOString(),
+                },
+              },
+            }
+          : {}),
       });
-
-      if (request.nextAction && actionType && actionDueDate && actionLabel.trim()) {
-        await store.data.updateRequestAction(request.nextAction.id, {
-          type: actionType,
-          label: actionLabel.trim(),
-          dueDate: new Date(actionDueDate).toISOString(),
-        });
-      }
 
       onClose();
     } catch {

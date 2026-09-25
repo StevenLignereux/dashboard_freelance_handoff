@@ -459,6 +459,41 @@ describe('SeedRepository', () => {
       if (before.nextAction) expect(updated.nextAction?.id).toBe(before.nextAction.id);
     });
 
+    it('met à jour la demande et sa prochaine action ensemble', async () => {
+      const repo = new SeedRepository();
+      const request = (await repo.loadRequests()).find((item) => item.nextAction);
+      if (!request?.nextAction) throw new Error('Expected a seeded open action.');
+
+      const updated = await repo.updateRequest(request.id, {
+        title: 'Titre enregistré avec action',
+        nextActionUpdate: {
+          id: request.nextAction.id,
+          input: { label: 'Nouvelle action enregistrée' },
+        },
+      });
+
+      expect(updated.title).toBe('Titre enregistré avec action');
+      expect(updated.nextAction?.label).toBe('Nouvelle action enregistrée');
+    });
+
+    it('ne modifie pas la demande si la mise à jour groupée de sa prochaine action échoue', async () => {
+      const repo = new SeedRepository();
+      const request = (await repo.loadRequests()).find((item) => item.nextAction);
+      if (!request?.nextAction) throw new Error('Expected a seeded open action.');
+
+      await expect(repo.updateRequest(request.id, {
+        title: 'Ne doit pas être enregistré',
+        nextActionUpdate: {
+          id: 'missing-action',
+          input: { label: 'Action invalide' },
+        },
+      })).rejects.toThrow(/action.*not found/i);
+
+      const unchanged = (await repo.loadRequests()).find((item) => item.id === request.id);
+      expect(unchanged?.title).toBe(request.title);
+      expect(unchanged?.nextAction?.label).toBe(request.nextAction.label);
+    });
+
     it('terminee clôt la demande sans l’archiver et libère le contact', async () => {
       const contact = await repository.createContact({
         firstName: 'Test', lastName: 'Lifecycle', relationship: 'prospect',

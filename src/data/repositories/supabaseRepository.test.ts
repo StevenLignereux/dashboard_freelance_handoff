@@ -1242,6 +1242,47 @@ describe('SupabaseRepository', () => {
   });
 
   describe('updateRequest (tests 21-27)', () => {
+    it('utilise la RPC atomique lorsque la demande et son action sont modifiées ensemble', async () => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: {
+          request: {
+            id: 'r-1', contact_id: 'c-1', title: 'Projet modifié', description: 'Description',
+            status: 'en_attente', created_at: '2024-01-01', last_activity_at: '2024-01-02', archived: false,
+          },
+          action: {
+            id: 'a-1', request_id: 'r-1', type: 'devis', label: 'Envoyer le devis',
+            due_at: '2024-01-05T10:00:00.000Z', completed_at: null,
+          },
+        },
+        error: null,
+      });
+      const testRepo = repository as unknown as { getSupabase: () => unknown };
+      testRepo.getSupabase = () => ({ rpc });
+
+      const updated = await repository.updateRequest('r-1', {
+        title: 'Projet modifié', description: 'Description', status: 'en_attente',
+        nextActionUpdate: {
+          id: 'a-1',
+          input: { type: 'devis', label: 'Envoyer le devis', dueDate: '2024-01-05T10:00:00.000Z' },
+        },
+      });
+
+      expect(updated.title).toBe('Projet modifié');
+      expect(updated.status).toBe('en_attente');
+      expect(updated.nextAction).toEqual({
+        id: 'a-1', type: 'devis', label: 'Envoyer le devis', dueDate: '2024-01-05T10:00:00.000Z',
+      });
+      expect(rpc).toHaveBeenCalledWith('update_request_with_action', {
+        p_request_id: 'r-1', p_action_id: 'a-1',
+        p_title: 'Projet modifié', p_update_title: true,
+        p_description: 'Description', p_update_description: true,
+        p_status: 'en_attente', p_update_status: true,
+        p_action_type: 'devis', p_update_action_type: true,
+        p_action_label: 'Envoyer le devis', p_update_action_label: true,
+        p_action_due_at: '2024-01-05T10:00:00.000Z', p_update_action_due_at: true,
+      });
+    });
+
     it('persiste la clôture du statut et libère la demande active', async () => {
       let capturedPatch: Record<string, unknown> | null = null;
       const updatedDbRequest = {
