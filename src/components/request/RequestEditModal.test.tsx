@@ -169,6 +169,27 @@ describe('RequestEditModal', () => {
     });
   });
 
+  it('permet de modifier le statut de la demande et envoie le choix au repository', async () => {
+    const onClose = vi.fn();
+    const repo = buildRepository();
+
+    render(withWrapper(<>
+      <DataReady />
+      <RequestEditModal requestId="r-jean-site" onClose={onClose} />
+    </>, repo));
+    await waitForDataLoaded();
+
+    fireEvent.change(screen.getByLabelText('Statut'), { target: { value: 'terminee' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+
+    await waitFor(() => {
+      expect(repo.updateRequestSpy).toHaveBeenCalledWith(
+        'r-jean-site', expect.objectContaining({ status: 'terminee' })
+      );
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('51. vider description envoie null → clear description, submit → updateRequest arg description === null', async () => {
     const onClose = vi.fn();
     const repo = buildRepository();

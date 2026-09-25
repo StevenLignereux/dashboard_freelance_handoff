@@ -455,7 +455,7 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
       </div>
       {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction ?? onEditRequestAction ?? onCreateMission ?? onCreateExchange) && (
         <div className="flex items-center gap-2 pt-2 mt-3 border-t border-brand-violet/10 flex-wrap">
-          {onCreateMission && (
+          {onCreateMission && request.status !== 'terminee' && request.status !== 'sans_suite' && (
             <button
               type="button"
               onClick={() => { onCreateMission(request.id); }}

@@ -56,6 +56,7 @@ export interface CreateRequestInput {
 export interface UpdateRequestInput {
   title?: string;
   description?: string | null;
+  status?: Request['status'];
 }
 
 export interface CreateRequestActionInput {

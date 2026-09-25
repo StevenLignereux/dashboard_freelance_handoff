@@ -380,3 +380,47 @@ describe('ContactCardModal — Échange V1 : bouton Ajouter un échange', () => 
     expect(screen.queryByRole('button', { name: /Ajouter un échange/i })).not.toBeInTheDocument();
   });
 });
+
+describe('ContactCardModal — cycle de vie de la demande', () => {
+  it('ne présente pas une demande terminée comme la demande active du contact', async () => {
+    const request = seedRequests.find((item) => item.id === 'r-jean-site');
+    const contact = seedContacts.find((item) => item.id === 'c-jean-dupont');
+    if (!request || !contact) throw new Error('Expected seed request and contact.');
+    const closedRequest = { ...request, status: 'terminee' as const };
+    const contactWithoutActiveRequest = { ...contact, activeRequestId: undefined };
+
+    render(withWrapper(<>
+      <DataReady />
+      <ContactCardModal contactId="c-jean-dupont" onClose={vi.fn()} onCreateRequest={vi.fn()} />
+    </>, buildRepository({
+      loadContacts: () => Promise.resolve([contactWithoutActiveRequest]),
+      loadRequests: () => Promise.resolve([closedRequest]),
+    })));
+    await waitForDataLoaded();
+
+    expect(screen.getByText('Aucune demande active pour ce contact.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3, name: 'Création site vitrine' })).not.toBeInTheDocument();
+  });
+
+  it('masque Créer une mission pour une demande terminée', async () => {
+    const terminalRequests = seedRequests.map((request) => request.id === 'r-jean-site'
+      ? { ...request, status: 'terminee' as const }
+      : request);
+    const onCreateMission = vi.fn();
+
+    render(withWrapper(<>
+      <DataReady />
+      <ContactCardModal
+        contactId="c-jean-dupont"
+        requestId="r-jean-site"
+        onClose={vi.fn()}
+        onCreateMission={onCreateMission}
+      />
+    </>, buildRepository({ loadRequests: () => Promise.resolve(terminalRequests) })));
+
+    await waitForDataLoaded();
+
+    expect(screen.queryByRole('button', { name: /Créer une mission/i })).not.toBeInTheDocument();
+    expect(onCreateMission).not.toHaveBeenCalled();
+  });
+});

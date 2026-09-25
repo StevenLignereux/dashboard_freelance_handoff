@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore, useReducedMotion } from '../../store/AppStore';
-import type { Contact, NextActionType } from '../../types';
+import type { Contact, NextActionType, RequestStatus } from '../../types';
+import { statusMeta } from '../../tokens/design-tokens';
 
 interface RequestEditModalProps {
   requestId: string | null;
@@ -54,6 +55,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
 
   const [title, setTitle] = useState(request?.title ?? '');
   const [description, setDescription] = useState(request?.description ?? '');
+  const [status, setStatus] = useState<RequestStatus>(request?.status ?? 'nouveau');
   const [actionType, setActionType] = useState<NextActionType | undefined>(request?.nextAction?.type);
   const [actionLabel, setActionLabel] = useState(request?.nextAction?.label ?? '');
   const [actionDueDate, setActionDueDate] = useState(() => {
@@ -79,6 +81,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
     if (!request) return;
     setTitle(request.title);
     setDescription(request.description ?? '');
+    setStatus(request.status);
     if (request.nextAction) {
       setActionType(request.nextAction.type);
       setActionLabel(request.nextAction.label);
@@ -89,7 +92,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
     }
     setPending(false);
     setSubmitError(null);
-  }, [request?.id, request?.title, request?.description, request?.nextAction]);
+  }, [request?.id, request?.title, request?.description, request?.status, request?.nextAction]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -172,6 +175,7 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
       await store.data.updateRequest(request.id, {
         title: title.trim(),
         description: description.trim().length > 0 ? description.trim() : null,
+        status,
       });
 
       if (request.nextAction && actionType && actionDueDate && actionLabel.trim()) {
@@ -261,6 +265,23 @@ export function RequestEditModal({ requestId, onClose }: RequestEditModalProps) 
                     value={description}
                     onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { setDescription(e.target.value); }}
                   />
+                </label>
+              </div>
+
+              <div>
+                <label className="block">
+                  <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1.5">
+                    Statut
+                  </span>
+                  <select
+                    className="input w-full mt-1"
+                    value={status}
+                    onChange={(e) => { setStatus(e.target.value as RequestStatus); }}
+                  >
+                    {(Object.keys(statusMeta) as RequestStatus[]).map((value) => (
+                      <option key={value} value={value}>{statusMeta[value].label}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
 

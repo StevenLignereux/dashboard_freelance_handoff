@@ -28,6 +28,65 @@ describe('SupabaseRepository', () => {
     vi.clearAllMocks();
   });
 
+  describe('mission lifecycle RPCs', () => {
+    it('crée une mission via la RPC atomique avec tous ses champs', async () => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: {
+          id: 'm-1', request_id: 'r-1', title: 'Site', status: 'a_demarrer',
+          start_date: '2026-09-25', end_date: null, progress: 0, notes: null,
+        },
+        error: null,
+      });
+      const testRepo = repository as unknown as {
+        getSupabase: () => unknown;
+        getCurrentUserId: () => Promise<string>;
+      };
+      testRepo.getSupabase = () => ({ rpc });
+      testRepo.getCurrentUserId = () => Promise.resolve('user-1');
+
+      const mission = await repository.createMission({
+        requestId: 'r-1', contactId: 'c-1', title: 'Site',
+        status: 'a_demarrer', progress: 0, notes: 'Premier lot',
+      });
+
+      expect(rpc).toHaveBeenCalledWith('create_mission_with_lifecycle', {
+        p_request_id: 'r-1', p_contact_id: 'c-1', p_title: 'Site', p_status: 'a_demarrer',
+        p_progress: 0, p_notes: 'Premier lot',
+      });
+      expect(mission.contactId).toBe('c-1');
+    });
+
+    it('met à jour une mission via la RPC avec les indicateurs des champs fournis', async () => {
+      const rpc = vi.fn().mockResolvedValue({
+        data: {
+          id: 'm-1', request_id: 'r-1', title: 'Site final', status: 'terminee',
+          start_date: '2026-09-25', end_date: null, progress: 100, notes: null,
+        },
+        error: null,
+      });
+      const testRepo = repository as unknown as { getSupabase: () => unknown };
+      testRepo.getSupabase = () => ({
+        rpc,
+        from: (table: string) => {
+          if (table !== 'requests') throw new Error(`Unexpected table: ${table}`);
+          return {
+            select: () => ({
+              eq: () => ({ maybeSingle: () => Promise.resolve({ data: { contact_id: 'c-1' }, error: null }) }),
+            }),
+          };
+        },
+      });
+
+      await repository.updateMission('m-1', { title: 'Site final', status: 'terminee', progress: 100, notes: null });
+
+      expect(rpc).toHaveBeenCalledWith('update_mission_with_lifecycle', {
+        p_mission_id: 'm-1', p_title: 'Site final', p_update_title: true,
+        p_status: 'terminee', p_update_status: true, p_progress: 100,
+        p_update_progress: true, p_notes: null, p_update_notes: true,
+      });
+    });
+  });
+
   describe('loadContacts', () => {
     it('lance une erreur si Supabase nest pas configuré', async () => {
       const brokenRepo = repository as unknown as {
@@ -1183,6 +1242,55 @@ describe('SupabaseRepository', () => {
   });
 
   describe('updateRequest (tests 21-27)', () => {
+    it('persiste la clôture du statut et libère la demande active', async () => {
+      let capturedPatch: Record<string, unknown> | null = null;
+      const updatedDbRequest = {
+        id: 'r-1', contact_id: 'c-1', title: 'Projet', description: null,
+        status: 'terminee', created_at: '2024-01-01', last_activity_at: '2024-01-02',
+        is_active: false, archived: false, user_id: 'u-1',
+      };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedDbRequest, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatch = { ...patch };
+        return { eq: mockEq };
+      });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'requests') return { update: mockUpdate };
+        if (table === 'request_actions') return { select: () => ({ eq: () => ({ is: () => Promise.resolve({ data: [], error: null }) }) }) };
+        return { select: vi.fn() };
+      });
+
+      const updated = await repository.updateRequest('r-1', { status: 'terminee' });
+
+      expect(capturedPatch).toEqual({ status: 'terminee' });
+      expect(updated.status).toBe('terminee');
+      expect(updated.archived).toBe(false);
+    });
+
+    it('réactive une demande rouverte et traduit le conflit de demande active', async () => {
+      let capturedPatch: Record<string, unknown> | null = null;
+      const mockUpdate = vi.fn().mockImplementation((patch: Record<string, unknown>) => {
+        capturedPatch = { ...patch };
+        return {
+          eq: () => ({
+            select: () => ({
+              single: () => Promise.resolve({
+                data: null,
+                error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+              }),
+            }),
+          }),
+        };
+      });
+      mockFrom.mockReturnValue({ update: mockUpdate });
+
+      await expect(repository.updateRequest('r-1', { status: 'nouveau' }))
+        .rejects.toThrow(/already has an active request/i);
+      expect(capturedPatch).toEqual({ status: 'nouveau' });
+    });
+
     it('21. update patch ne contient que title/description', async () => {
       const capturedPatches: Record<string, unknown>[] = [];
       const updatedDbRequest = {

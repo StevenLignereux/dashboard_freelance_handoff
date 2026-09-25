@@ -269,7 +269,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_mission_with_lifecycle: {
+        Args: {
+          p_request_id: string
+          p_contact_id: string
+          p_title: string
+          p_status: Database["public"]["Enums"]["mission_status"]
+          p_progress: number
+          p_notes: string | null
+        }
+        Returns: Database["public"]["Tables"]["missions"]["Row"]
+      }
+      update_mission_with_lifecycle: {
+        Args: {
+          p_mission_id: string
+          p_title: string
+          p_update_title: boolean
+          p_status: Database["public"]["Enums"]["mission_status"]
+          p_update_status: boolean
+          p_progress: number
+          p_update_progress: boolean
+          p_notes: string | null
+          p_update_notes: boolean
+        }
+        Returns: Database["public"]["Tables"]["missions"]["Row"]
+      }
     }
     Enums: {
       exchange_type: "appel" | "email" | "message" | "rencontre" | "note"
@@ -296,6 +320,7 @@ export type Database = {
         | "en_attente"
         | "mission_confirmee"
         | "sans_suite"
+        | "terminee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -452,6 +477,7 @@ export const Constants = {
         "en_attente",
         "mission_confirmee",
         "sans_suite",
+        "terminee",
       ],
     },
   },

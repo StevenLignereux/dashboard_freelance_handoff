@@ -70,6 +70,22 @@ function DataReady() {
 }
 
 describe('RequestsPage', () => {
+  it('garde les demandes terminées visibles dans la liste', async () => {
+    const requests = seedRequests.map((request) => request.id === 'r-jean-site'
+      ? { ...request, status: 'terminee' as const }
+      : request);
+
+    render(withWrapper(<>
+      <DataReady />
+      <RequestsPage onOpenContact={vi.fn()} />
+    </>, buildRepository({ loadRequests: () => Promise.resolve(requests) })));
+    await waitForDataLoaded();
+
+    const row = screen.getByText('Création site vitrine').closest('button');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveTextContent('Terminée');
+  });
+
   it('56. RequestsRow archived n\'affiche pas NextActionView. archived request shows "Demande archivée" and no action content', async () => {
     const onOpenContact = vi.fn();
 

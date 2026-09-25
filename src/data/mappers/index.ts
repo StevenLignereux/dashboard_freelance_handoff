@@ -45,6 +45,7 @@ const REQUEST_STATUS_MAP: Record<DbRequestStatus, RequestStatus> = {
   en_attente: 'en_attente',
   mission_confirmee: 'mission_confirmee',
   sans_suite: 'sans_suite',
+  terminee: 'terminee',
 };
 
 const MISSION_STATUS_MAP: Record<DbMissionStatus, MissionStatus> = {

@@ -111,6 +111,19 @@ describe('hydrateNextAction', () => {
 });
 
 describe('buildDashboardData', () => {
+  it('n’affiche pas les actions des demandes terminées ou sans suite dans le tableau de bord', () => {
+    const requests = [
+      request(1, { status: 'terminee', nextAction: { id: 'na-1', type: 'appel', label: 'Appeler', dueDate: d(-1) } }),
+      request(2, { status: 'sans_suite', nextAction: { id: 'na-2', type: 'appel', label: 'Appeler', dueDate: d(0) } }),
+    ];
+
+    const dashboard = buildDashboardData({ requests, contacts: [contact(1), contact(2)], missions: [] });
+
+    expect(dashboard.overdueActions).toHaveLength(0);
+    expect(dashboard.todayActions).toHaveLength(0);
+    expect(dashboard.upcomingActions).toHaveLength(0);
+  });
+
   it('classe overdue/today/upcoming et ignore les missions <30% pour le compteur attention', () => {
     const contacts = [contact(1), contact(2), contact(3), contact(4), contact(5)];
     const requests: Request[] = [

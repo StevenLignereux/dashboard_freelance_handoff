@@ -109,7 +109,7 @@ export function buildDashboardData({
   const upcoming: DashboardItem[] = [];
 
   for (const r of requests) {
-    if (r.archived) continue;
+    if (r.archived || r.status === 'sans_suite' || r.status === 'terminee') continue;
     const na = r.nextAction;
     if (!na) continue;
     const contact = contactById.get(r.contactId);
@@ -214,10 +214,11 @@ export function getActiveRequestForContact({
   contactId: string;
   requests: Request[];
 }): Request | undefined {
-  const contact = (c: Request) => c.contactId === contactId && !c.archived;
-  return (
-    requests.find((r) => contact(r) && r.status !== 'sans_suite') ??
-    requests.find(contact)
+  return requests.find((request) =>
+    request.contactId === contactId &&
+    !request.archived &&
+    request.status !== 'sans_suite' &&
+    request.status !== 'terminee'
   );
 }
 

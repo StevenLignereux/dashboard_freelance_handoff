@@ -56,6 +56,10 @@ const ACTION_TYPE_REVERSE_MAP: Record<NextActionType, DbRequestActionType> = {
   autre: 'autre',
 };
 
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
+}
+
 export class SupabaseRepository implements IRepository {
   private ensureSupabaseConfigured(): void {
     if (!supabase) {
@@ -402,10 +406,10 @@ export class SupabaseRepository implements IRepository {
     const patch: Record<string, unknown> = {};
     if (input.title !== undefined) patch.title = input.title;
     if (input.description !== undefined) patch.description = input.description ?? null;
+    if (input.status !== undefined) patch.status = input.status;
 
     delete patch.user_id;
     delete patch.contact_id;
-    delete patch.status;
     delete patch.is_active;
     delete patch.archived;
     delete patch.created_at;
@@ -420,6 +424,9 @@ export class SupabaseRepository implements IRepository {
     /* eslint-enable */
 
     if (updateError) {
+      if (isUniqueViolation(updateError) && input.status !== undefined) {
+        throw new Error('Cannot update request: contact already has an active request.');
+      }
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       throw new Error(`Failed to update request id=${requestId}: ${updateError.message}`);
     }
@@ -643,70 +650,37 @@ export class SupabaseRepository implements IRepository {
 
   async createMission(input: CreateMissionInput): Promise<Mission> {
     this.ensureSupabaseConfigured();
-    const userId = await this.getCurrentUserId();
-    const now = new Date().toISOString();
     const sb = this.getSupabase();
-
-    const { data: requestData, error: requestError } = await sb
-      .from('requests')
-      .select('id, archived, contact_id')
-      .eq('id', input.requestId)
-      .maybeSingle();
-
-    if (requestError) {
-      throw new Error(
-        `Failed to load request id=${input.requestId}: ${requestError.message}`
-      );
-    }
-
-    if (!requestData) {
-      throw new Error(
-        `Cannot create mission: request id=${input.requestId} not found.`
-      );
-    }
-
-    if (requestData.archived) {
-      throw new Error(
-        `Cannot create mission: request id=${input.requestId} is archived.`
-      );
-    }
-
-    const { data, error } = await sb
-      .from('missions')
-      .insert({
-        user_id: userId,
-        request_id: input.requestId,
-        title: input.title,
-        status: input.status ?? 'a_demarrer',
-        progress: input.progress ?? 0,
-        notes: input.notes ?? null,
-        start_date: now,
-      })
-      .select()
-      .single();
+    const { data, error } = await sb.rpc('create_mission_with_lifecycle', {
+      p_request_id: input.requestId,
+      p_contact_id: input.contactId,
+      p_title: input.title,
+      p_status: input.status ?? 'a_demarrer',
+      p_progress: input.progress ?? 0,
+      p_notes: input.notes ?? null,
+    });
     if (error) {
       throw new Error(
         `Failed to create mission for request id=${input.requestId}: ${error.message}`
       );
     }
-
-    return mapMission(data, requestData.contact_id);
+    return mapMission(data, input.contactId);
   }
 
   async updateMission(missionId: string, input: UpdateMissionInput): Promise<Mission> {
     this.ensureSupabaseConfigured();
     const sb = this.getSupabase();
-    const patch: Partial<DbMission> = {};
-    if (input.title !== undefined) patch.title = input.title;
-    if (input.status !== undefined) patch.status = input.status;
-    if (input.progress !== undefined) patch.progress = input.progress;
-    if (input.notes !== undefined) patch.notes = input.notes ?? null;
-    const { data, error } = await sb
-      .from('missions')
-      .update(patch)
-      .eq('id', missionId)
-      .select()
-      .single();
+    const { data, error } = await sb.rpc('update_mission_with_lifecycle', {
+      p_mission_id: missionId,
+      p_title: input.title ?? '',
+      p_update_title: input.title !== undefined,
+      p_status: input.status ?? 'a_demarrer',
+      p_update_status: input.status !== undefined,
+      p_progress: input.progress ?? 0,
+      p_update_progress: input.progress !== undefined,
+      p_notes: input.notes ?? null,
+      p_update_notes: input.notes !== undefined,
+    });
     if (error) throw new Error(`Failed to update mission ${missionId}: ${error.message}`);
     const dbMission = data;
     const { data: reqData, error: reqErr } = await sb

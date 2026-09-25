@@ -242,6 +242,16 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       next[idx] = updated;
       return next;
     });
+    const requestIsTerminal = updated.status === 'terminee' || updated.status === 'sans_suite' || updated.archived;
+    if (requestIsTerminal) {
+      setContacts((prev) => prev.map((contact) => contact.id === updated.contactId && contact.activeRequestId === updated.id
+        ? { ...contact, activeRequestId: undefined }
+        : contact));
+    } else if (input.status !== undefined) {
+      setContacts((prev) => prev.map((contact) => contact.id === updated.contactId
+        ? { ...contact, activeRequestId: updated.id }
+        : contact));
+    }
     return updated;
   }, []);
 
@@ -311,23 +321,40 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
   const createMission = useCallback<AppStoreDataSlice['createMission']>(async (input) => {
     const repo = repositoryRef.current;
     const created = await repo.createMission(input);
+    const missionAlreadyLoaded = missions.some((mission) => mission.id === created.id);
     setMissions((prev) => {
       if (prev.some((m) => m.id === created.id)) return prev;
       return [created, ...prev];
     });
+    setRequests((prev) => prev.map((request) => request.id === created.requestId
+      ? { ...request, status: 'mission_confirmee' }
+      : request));
     setContacts((prev) => {
-      const idx = prev.findIndex((c) => c.id === input.contactId);
+      const idx = prev.findIndex((c) => c.id === created.contactId);
       if (idx === -1) return prev;
       const next = prev.slice();
-      next[idx] = { ...next[idx], totalMissions: next[idx].totalMissions + 1 };
+      const contact = next[idx];
+      const contactMissionCount = missions.filter((mission) => mission.contactId === created.contactId).length;
+      const relationship = contact.relationship === 'prospect'
+        ? (contactMissionCount === 0 ? 'client' : 'client_recurrent')
+        : contact.relationship === 'ancien_client' || (contact.relationship === 'client' && contactMissionCount > 0)
+          ? 'client_recurrent'
+          : contact.relationship;
+      next[idx] = {
+        ...contact,
+        relationship,
+        totalMissions: contact.totalMissions + (missionAlreadyLoaded ? 0 : 1),
+        activeRequestId: created.requestId,
+      };
       return next;
     });
     return created;
-  }, []);
+  }, [missions]);
 
   const updateMission = useCallback<AppStoreDataSlice['updateMission']>(async (missionId, input) => {
     const repo = repositoryRef.current;
     const updated = await repo.updateMission(missionId, input);
+    const previous = missions.find((mission) => mission.id === missionId);
     setMissions((prev) => {
       const idx = prev.findIndex((m) => m.id === missionId);
       if (idx === -1) return prev;
@@ -335,8 +362,21 @@ export function AppStoreProvider({ children, repository }: AppStoreProviderProps
       next[idx] = updated;
       return next;
     });
+    if (previous && previous.status !== 'terminee' && updated.status === 'terminee') {
+      const requestMissions = missions.map((mission) => mission.id === missionId ? updated : mission)
+        .filter((mission) => mission.requestId === updated.requestId);
+      if (requestMissions.length > 0 && requestMissions.every((mission) => mission.status === 'terminee')) {
+        const request = requests.find((item) => item.id === updated.requestId);
+        if (request) {
+          setRequests((prev) => prev.map((item) => item.id === request.id ? { ...item, status: 'terminee' } : item));
+          setContacts((prev) => prev.map((contact) => contact.id === request.contactId && contact.activeRequestId === request.id
+            ? { ...contact, activeRequestId: undefined }
+            : contact));
+        }
+      }
+    }
     return updated;
-  }, []);
+  }, [missions, requests]);
 
   const createExchange = useCallback<AppStoreDataSlice['createExchange']>(async (input) => {
     const repo = repositoryRef.current;
