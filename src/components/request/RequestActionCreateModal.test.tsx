@@ -8,10 +8,11 @@ import type {
     NextAction,
 } from '../../types';
 import { seedMissions, seedExchanges } from '../../data/seedData';
-import type { CreateContactInput, IRepository, UpdateContactInput, UpdateRequestInput, CreateRequestActionInput } from '../../data/repositories/interface';
+import type { CreateContactInput, IRepository, UpdateContactInput, UpdateRequestInput, CreateRequestActionInput, UpdateRequestActionInput } from '../../data/repositories/interface';
 
 type RepositorySpy = IRepository & {
     createRequestActionSpy: Mock<(input: CreateRequestActionInput) => Promise<NextAction>>;
+    updateRequestActionSpy: Mock<(actionId: string, input: UpdateRequestActionInput) => Promise<NextAction>>;
 };
 
 const TEST_REQUEST: Request = {
@@ -43,6 +44,17 @@ function buildRepository(overrides?: Partial<IRepository>, customRequests?: Requ
                 return Promise.resolve(created);
             })
         );
+    const updateRequestActionSpy = vi
+        .fn<(actionId: string, input: UpdateRequestActionInput) => Promise<NextAction>>()
+        .mockImplementation(
+            overrides?.updateRequestAction ??
+            ((actionId, input) => Promise.resolve({
+                id: actionId,
+                type: input.type ?? 'appel',
+                label: input.label ?? 'Appeler le client',
+                dueDate: input.dueDate ?? '2026-09-28T10:00:00.000Z',
+            }))
+        );
 
     return {
         loadContacts: () => Promise.resolve([]),
@@ -58,8 +70,7 @@ function buildRepository(overrides?: Partial<IRepository>, customRequests?: Requ
         archiveRequest: vi.fn<(requestId: string) => Promise<void>>(),
         createRequest: vi.fn(),
         createRequestAction: createRequestActionSpy,
-        updateRequestAction: () =>
-            Promise.reject(new Error('not implemented')),
+        updateRequestAction: updateRequestActionSpy,
         createMission: () =>
             Promise.reject(new Error('not implemented')),
         updateMission: () =>
@@ -67,6 +78,7 @@ function buildRepository(overrides?: Partial<IRepository>, customRequests?: Requ
         createExchange: overrides?.createExchange ?? (() => Promise.reject(new Error('not implemented'))),
         ...overrides,
         createRequestActionSpy,
+        updateRequestActionSpy,
     };
 }
 
@@ -286,5 +298,47 @@ describe('RequestActionCreateModal', () => {
 
         expect(repo.createRequestActionSpy).not.toHaveBeenCalled();
         expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('8. edit mode preloads the existing action and saves the changed date', async () => {
+        const onClose = vi.fn();
+        const existingAction: NextAction = {
+            id: 'a-existing',
+            type: 'appel',
+            label: 'Appeler le client',
+            dueDate: '2026-09-25T09:30:00.000Z',
+        };
+        const requestWithAction = { ...TEST_REQUEST, nextAction: existingAction };
+        const repo = buildRepository({}, [requestWithAction]);
+
+        render(
+            withWrapper(
+                <>
+                    <DataReady />
+                    <RequestActionCreateModal requestId={TEST_REQUEST.id} actionId="a-existing" onClose={onClose} />
+                </>,
+                repo
+            )
+        );
+
+        await waitForDataLoaded();
+
+        expect(screen.getByRole('dialog', { name: /Modifier une action/i })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: /Action/i })).toHaveValue('Appeler le client');
+        const dateInput = screen.getByLabelText(/Date prévue/i);
+        fireEvent.change(dateInput, { target: { value: '2026-09-28T10:00' } });
+        act(() => {
+            fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+        });
+
+        await waitFor(() => {
+            expect(repo.updateRequestActionSpy).toHaveBeenCalledWith('a-existing', {
+                type: 'appel',
+                label: 'Appeler le client',
+                dueDate: new Date('2026-09-28T10:00').toISOString(),
+            });
+            expect(onClose).toHaveBeenCalledTimes(1);
+        });
+        expect(repo.createRequestActionSpy).not.toHaveBeenCalled();
     });
 });

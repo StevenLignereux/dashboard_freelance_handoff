@@ -111,6 +111,7 @@ function Router() {
   const [archivingRequestId, setArchivingRequestId] = useState<string | null>(null);
   const [preRequestPayload, setPreRequestPayload] = useState<OpenContactPayload | null>(null);
   const [creatingRequestActionForRequestId, setCreatingRequestActionForRequestId] = useState<string | null>(null);
+  const [editingRequestActionForRequestId, setEditingRequestActionForRequestId] = useState<string | null>(null);
   const [creatingMissionRequestId, setCreatingMissionRequestId] = useState<string | null>(null);
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
   const [creatingExchangeRequestId, setCreatingExchangeRequestId] = useState<string | null>(null);
@@ -119,6 +120,7 @@ function Router() {
     | { type: 'edit'; requestId: string }
     | { type: 'archive'; requestId: string }
     | { type: 'action'; requestId: string }
+    | { type: 'action-edit'; requestId: string }
     | { type: 'mission-create'; requestId: string }
     | { type: 'exchange-create'; requestId: string }
     | null;
@@ -202,6 +204,9 @@ function Router() {
       case 'action':
         setCreatingRequestActionForRequestId(pending.requestId);
         break;
+      case 'action-edit':
+        setEditingRequestActionForRequestId(pending.requestId);
+        break;
       case 'mission-create':
         setCreatingMissionRequestId(pending.requestId);
         break;
@@ -283,6 +288,23 @@ function Router() {
     if (toReopen) {
       setActiveContact(toReopen);
     }
+  }, [preRequestPayload]);
+
+  const handleEditRequestAction = useCallback((requestId: string) => {
+    const contactId = store.data.requests.find((r) => r.id === requestId)?.contactId;
+    if (!contactId) return;
+    const payload = activeContact?.contactId === contactId ? activeContact : { contactId, requestId };
+    setPreRequestPayload(payload);
+    setPendingRequestModal({ type: 'action-edit', requestId });
+    setActiveContact(null);
+  }, [store.data.requests, activeContact]);
+
+  const handleCancelEditRequestAction = useCallback(() => {
+    const toReopen = preRequestPayload;
+    setEditingRequestActionForRequestId(null);
+    setPendingRequestModal(null);
+    setPreRequestPayload(null);
+    if (toReopen) setActiveContact(toReopen);
   }, [preRequestPayload]);
 
   const handleCreateMission = useCallback((requestId: string) => {
@@ -379,6 +401,7 @@ function Router() {
             onEditRequest={handleEditRequest}
             onArchiveRequest={handleArchiveRequest}
             onCreateRequestAction={handleCreateRequestAction}
+            onEditRequestAction={handleEditRequestAction}
             onCreateMission={handleCreateMission}
             onCreateExchange={handleCreateExchange}
           />
@@ -411,6 +434,11 @@ function Router() {
           <RequestActionCreateModal
             requestId={creatingRequestActionForRequestId}
             onClose={handleCancelCreateRequestAction}
+          />
+          <RequestActionCreateModal
+            requestId={editingRequestActionForRequestId}
+            actionId={editingRequestActionForRequestId ? store.data.requests.find((r) => r.id === editingRequestActionForRequestId)?.nextAction?.id : null}
+            onClose={handleCancelEditRequestAction}
           />
           <MissionCreateModal
             contactId={creatingMissionRequestId ? (store.data.requests.find((r) => r.id === creatingMissionRequestId)?.contactId ?? null) : null}

@@ -5,7 +5,15 @@ import type { NextActionType } from '../../types';
 
 interface RequestActionCreateModalProps {
   requestId: string | null;
+  actionId?: string | null;
   onClose: () => void;
+}
+
+function toDateTimeLocal(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
 
 function getFocusable(root: HTMLElement): HTMLElement[] {
@@ -38,7 +46,7 @@ const actionTypeOptions: { value: NextActionType; label: string }[] = [
   { value: 'autre', label: 'Autre' },
 ];
 
-export function RequestActionCreateModal({ requestId, onClose }: RequestActionCreateModalProps) {
+export function RequestActionCreateModal({ requestId, actionId = null, onClose }: RequestActionCreateModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -46,7 +54,9 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
   const previouslyInert = useRef<Element[]>([]);
 
   const request = requestId ? store.data.requests.find((r) => r.id === requestId) : null;
-  const canOpen = request && !request.archived && !request.nextAction;
+  const action = request?.nextAction?.id === actionId ? request.nextAction : null;
+  const isEditing = actionId !== null;
+  const canOpen = request && !request.archived && (isEditing ? action !== null : !request.nextAction);
 
   const [type, setType] = useState<NextActionType>('appel');
   const [label, setLabel] = useState('');
@@ -63,12 +73,12 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
 
   useEffect(() => {
     if (!isOpen) return;
-    setType('appel');
-    setLabel('');
-    setDueDate('');
+    setType(action?.type ?? 'appel');
+    setLabel(action?.label ?? '');
+    setDueDate(action ? toDateTimeLocal(action.dueDate) : '');
     setPending(false);
     setSubmitError(null);
-  }, [isOpen]);
+  }, [isOpen, action]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -141,12 +151,16 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
     setPending(true);
     setSubmitError(null);
     try {
-      await store.data.createRequestAction({
-        requestId: request.id,
+      const input = {
         type,
         label: label.trim(),
         dueDate: new Date(dueDate).toISOString(),
-      });
+      };
+      if (action) {
+        await store.data.updateRequestAction(action.id, input);
+      } else {
+        await store.data.createRequestAction({ requestId: request.id, ...input });
+      }
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Une erreur est survenue.';
@@ -175,7 +189,7 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Planifier une action"
+            aria-label={isEditing ? 'Modifier une action' : 'Planifier une action'}
             tabIndex={-1}
             className="relative z-10 w-full max-w-lg rounded-3xl surface backdrop-blur-xl p-6 sm:p-7
               ring-1 ring-brand-violet/20 shadow-[0_60px_120px_-20px_rgba(15,23,42,0.6),0_20px_60px_-10px_rgba(124,92,255,0.2)]"
@@ -186,7 +200,7 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
           >
             <form onSubmit={handleSubmit} className="space-y-5">
               <h2 className="font-display font-bold text-slate-900 text-2xl leading-tight">
-                Planifier une action
+                {isEditing ? 'Modifier une action' : 'Planifier une action'}
               </h2>
 
               <div className="text-sm text-slate-500">
@@ -270,10 +284,10 @@ export function RequestActionCreateModal({ requestId, onClose }: RequestActionCr
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 animate-spin">
                         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                       </svg>
-                      Planification…
+                      {isEditing ? 'Enregistrement…' : 'Planification…'}
                     </>
                   ) : (
-                    'Planifier l\'action'
+                    isEditing ? 'Enregistrer' : 'Planifier l\'action'
                   )}
                 </button>
               </div>

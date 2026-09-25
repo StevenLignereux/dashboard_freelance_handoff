@@ -23,6 +23,7 @@ interface ContactCardModalProps {
   onArchive?: (contactId: string) => void;
   onCreateRequest?: (contactId: string) => void;
   onCreateRequestAction?: (requestId: string) => void;
+  onEditRequestAction?: (requestId: string) => void;
   onEditRequest?: (requestId: string) => void;
   onArchiveRequest?: (requestId: string) => void;
   onCreateMission?: (requestId: string) => void;
@@ -56,7 +57,7 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission, onCreateExchange }: ContactCardModalProps) {
+export function ContactCardModal({ contactId, requestId, onClose, onExitComplete, onEdit, onArchive, onCreateRequest, onEditRequest, onArchiveRequest, onCreateRequestAction, onEditRequestAction, onCreateMission, onCreateExchange }: ContactCardModalProps) {
   const store = useAppStore();
   const reduced = useReducedMotion();
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -278,6 +279,7 @@ export function ContactCardModal({ contactId, requestId, onClose, onExitComplete
                     onEditRequest={onEditRequest}
                     onArchiveRequest={onArchiveRequest}
                     onCreateRequestAction={onCreateRequestAction}
+                    onEditRequestAction={onEditRequestAction}
                     onCreateMission={onCreateMission}
                     onCreateExchange={onCreateExchange}
                   />
@@ -423,7 +425,7 @@ function ContactIdentity({ contact }: { contact: Contact }) {
   );
 }
 
-function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest, onCreateRequestAction, onCreateMission, onCreateExchange }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void; onCreateRequestAction?: (requestId: string) => void; onCreateMission?: (requestId: string) => void; onCreateExchange?: (requestId: string) => void }) {
+function RequestBlock({ request, isActive = true, onEditRequest, onArchiveRequest, onCreateRequestAction, onEditRequestAction, onCreateMission, onCreateExchange }: { request: Request; isActive?: boolean; onEditRequest?: (requestId: string) => void; onArchiveRequest?: (requestId: string) => void; onCreateRequestAction?: (requestId: string) => void; onEditRequestAction?: (requestId: string) => void; onCreateMission?: (requestId: string) => void; onCreateExchange?: (requestId: string) => void }) {
   return (
     <section className="space-y-3 p-4 sm:p-5 rounded-2xl bg-brand-violet/5 ring-1 ring-brand-violet/10">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -451,7 +453,7 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
       <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
         <span>Créée le {formatDueDate(request.createdAt).dateLabel}</span>
       </div>
-      {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction ?? onCreateMission ?? onCreateExchange) && (
+      {!request.archived && (onEditRequest ?? onArchiveRequest ?? onCreateRequestAction ?? onEditRequestAction ?? onCreateMission ?? onCreateExchange) && (
         <div className="flex items-center gap-2 pt-2 mt-3 border-t border-brand-violet/10 flex-wrap">
           {onCreateMission && (
             <button
@@ -496,6 +498,19 @@ function RequestBlock({ request, isActive = true, onEditRequest, onArchiveReques
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
               Planifier une action
+            </button>
+          )}
+          {request.nextAction && onEditRequestAction && (
+            <button
+              type="button"
+              onClick={() => { onEditRequestAction(request.id); }}
+              className="btn-ghost !py-1.5 !px-2.5 text-xs inline-flex items-center gap-1.5 hover:bg-brand-violet/10"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+              Modifier l’action
             </button>
           )}
           {onEditRequest && (

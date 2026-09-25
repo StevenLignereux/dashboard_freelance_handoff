@@ -104,7 +104,7 @@ describe('ExchangeCreateModal — V1 création échange', () => {
     const summary = screen.getByRole('textbox', { name: /Résumé/i });
     expect(summary).toBeInTheDocument();
 
-    const dateInput = screen.getByLabelText(/Date et heure/i) as HTMLInputElement;
+    const dateInput = screen.getByLabelText<HTMLInputElement>(/Date et heure/i);
     expect(dateInput).toBeInTheDocument();
     expect(dateInput.type).toBe('datetime-local');
     await waitFor(() => {
@@ -137,7 +137,7 @@ describe('ExchangeCreateModal — V1 création échange', () => {
     const typeSelect = screen.getByRole('combobox', { name: /Type/i });
     fireEvent.change(typeSelect, { target: { value: 'rencontre' } });
 
-    const dateInput = screen.getByLabelText(/Date et heure/i) as HTMLInputElement;
+    const dateInput = screen.getByLabelText<HTMLInputElement>(/Date et heure/i);
     fireEvent.change(dateInput, { target: { value: '2026-09-22T14:30' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
