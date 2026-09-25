@@ -3,7 +3,7 @@ import { TodayPanel } from '../components/dashboard/TodayPanel';
 import { ActiveMissionsPanel } from '../components/dashboard/ActiveMissionsPanel';
 import { ContactsSection } from '../components/contact/ContactsSection';
 import { useAppStore } from '../store/AppStore';
-import { buildDashboardData } from '../selectors/dashboard';
+import { buildDashboardData, type DashboardItem } from '../selectors/dashboard';
 import { useCurrentUser } from '../auth/AuthProvider';
 import { appConfig } from '../config/appConfig';
 import { pluralize } from '../utils/formatting';
@@ -27,6 +27,15 @@ export function DashboardPage({
   });
 
   const totalAttention = dashboard.attentionCount;
+  const handleCompleteAutoReminder = async (item: DashboardItem) => {
+    if (!item.requestId) return;
+    await store.data.createExchange({
+      requestId: item.requestId,
+      type: 'note',
+      date: new Date().toISOString(),
+      summary: 'Relance effectuée depuis le tableau de bord.',
+    });
+  };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 space-y-10 max-w-[1600px] mx-auto">
@@ -56,8 +65,16 @@ export function DashboardPage({
       </section>
 
       <section className="grid gap-5 lg:grid-cols-3">
-        <AttentionPanel items={dashboard.overdueActions} onOpenContact={onOpenContact} />
-        <TodayPanel items={dashboard.todayActions} onOpenContact={onOpenContact} />
+        <AttentionPanel
+          items={dashboard.overdueActions}
+          onOpenContact={onOpenContact}
+          onCompleteAutoReminder={handleCompleteAutoReminder}
+        />
+        <TodayPanel
+          items={dashboard.todayActions}
+          onOpenContact={onOpenContact}
+          onCompleteAutoReminder={handleCompleteAutoReminder}
+        />
         <ActiveMissionsPanel missions={dashboard.activeMissions} contacts={store.data.contacts} onOpenContact={onOpenContact} />
       </section>
 

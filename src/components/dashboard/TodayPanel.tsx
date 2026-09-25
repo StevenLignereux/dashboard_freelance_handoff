@@ -1,14 +1,16 @@
 import { formatScheduleLabel } from '../../utils/formatting';
 import type { DashboardItem } from '../../selectors/dashboard';
+import { CompleteAutoReminderButton } from './CompleteAutoReminderButton';
 
 interface TodayPanelProps {
   items: DashboardItem[];
   title?: string;
   tone?: 'violet' | 'cyan';
   onOpenContact: (contactId: string) => void;
+  onCompleteAutoReminder?: (item: DashboardItem) => Promise<void>;
 }
 
-export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone = 'violet', onOpenContact }: TodayPanelProps) {
+export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone = 'violet', onOpenContact, onCompleteAutoReminder }: TodayPanelProps) {
   const count = items.length;
   const color =
     tone === 'cyan'
@@ -49,10 +51,10 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
           {items.map((item) => {
             const schedule = formatScheduleLabel(item.action.dueDate);
             return (
-              <li key={item.id}>
+              <li key={item.id} className="flex items-center gap-2">
                 <button
                   onClick={() => { onOpenContact(item.contactId); }}
-                  className="group w-full flex items-center gap-3 p-3 rounded-xl ring-1 ring-transparent
+                  className="group flex-1 min-w-0 flex items-center gap-3 p-3 rounded-xl ring-1 ring-transparent
                     hover:bg-brand-violet/5 hover:ring-brand-violet/20
                     active:scale-[0.99]
                     transition-all duration-150 ease-snap text-left"
@@ -86,6 +88,9 @@ export function TodayPanel({ items, title = 'À faire aujourd&rsquo;hui', tone =
                     </svg>
                   </span>
                 </button>
+                {onCompleteAutoReminder && item.action.id.startsWith('auto-relance-') && (
+                  <CompleteAutoReminderButton item={item} onComplete={onCompleteAutoReminder} />
+                )}
               </li>
             );
           })}
